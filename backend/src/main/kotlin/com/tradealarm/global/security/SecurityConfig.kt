@@ -1,0 +1,30 @@
+// Spring Security 기본 정책을 정의합니다.
+// MVP 단계에서는 API를 열어두고, 이후 OAuth2/JWT 인증 정책을 이 파일에서 강화합니다.
+package com.tradealarm.global.security
+
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpMethod
+import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.web.SecurityFilterChain
+
+@Configuration
+@EnableWebSecurity
+class SecurityConfig {
+    @Bean
+    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        return http
+            .csrf { it.disable() }
+            .cors { }
+            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
+            .authorizeHttpRequests {
+                it.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                it.requestMatchers("/api/**", "/h2-console/**").permitAll()
+                it.anyRequest().permitAll()
+            }
+            .headers { it.frameOptions { frame -> frame.sameOrigin() } }
+            .build()
+    }
+}

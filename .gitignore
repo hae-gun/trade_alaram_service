@@ -8,3 +8,15 @@
 /dataSources.local.xml
 /.idea/
 /trade_alaram_service.iml
+
+# Build outputs
+backend/build/
+.gradle/
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+
+# Local env
+.env
+.env.*
+!frontend/.env.local.example
