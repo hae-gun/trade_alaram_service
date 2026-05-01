@@ -1,0 +1,11 @@
+# local 프로필 설정입니다.
+# Docker Compose로 띄운 PostgreSQL을 사용할 때 적용합니다.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/tradealarm
+    driver-class-name: org.postgresql.Driver
+    username: tradealarm
+    password: tradealarm
+  jpa:
+    hibernate:
+      ddl-auto: update

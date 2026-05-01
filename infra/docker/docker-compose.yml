@@ -1,0 +1,23 @@
+# 로컬 개발에 필요한 외부 인프라 구성입니다.
+# PostgreSQL은 영속 데이터 저장소, Redis는 향후 큐/캐시 용도로 사용합니다.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: trade-alarm-postgres
+    environment:
+      POSTGRES_DB: tradealarm
+      POSTGRES_USER: tradealarm
+      POSTGRES_PASSWORD: tradealarm
+    ports:
+      - "5432:5432"
+    volumes:
+      - trade_alarm_postgres:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: trade-alarm-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  trade_alarm_postgres:

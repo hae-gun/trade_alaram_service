@@ -1,0 +1,28 @@
+# 기본 실행 프로필 설정입니다.
+# H2 인메모리 DB로 바로 실행 가능한 개발용 백엔드 환경을 제공합니다.
+spring:
+  application:
+    name: trade-alarm-backend
+  datasource:
+    url: jdbc:h2:mem:tradealarm;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+server:
+  port: 8080
+
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:3000
