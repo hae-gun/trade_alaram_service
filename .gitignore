@@ -16,6 +16,11 @@ frontend/.next/
 frontend/out/
 frontend/node_modules/
 
+# Local database files
+backend/data/
+*.mv.db
+*.trace.db
+
 # Local env
 .env
 .env.*

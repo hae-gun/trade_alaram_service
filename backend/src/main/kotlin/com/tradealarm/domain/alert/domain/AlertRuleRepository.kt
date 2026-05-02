@@ -3,10 +3,14 @@
 package com.tradealarm.domain.alert.domain
 
 import com.tradealarm.domain.user.domain.User
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 
 interface AlertRuleRepository : JpaRepository<AlertRule, UUID> {
+    @EntityGraph(attributePaths = ["stock"])
     fun findAllByUserOrderByCreatedAtDesc(user: User): List<AlertRule>
+
+    @EntityGraph(attributePaths = ["user", "stock"])
     fun findAllByEnabledIsTrue(): List<AlertRule>
 }

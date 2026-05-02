@@ -7,6 +7,7 @@ import com.tradealarm.domain.notification.domain.AlertEvent
 import com.tradealarm.domain.notification.domain.NotificationChannel
 import com.tradealarm.domain.notification.domain.NotificationChannelType
 import com.tradealarm.domain.notification.domain.NotificationStatus
+import jakarta.validation.Valid
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
 import org.springframework.http.HttpStatus
@@ -61,7 +62,7 @@ class NotificationController(
 
     @PostMapping("/channels/email")
     @ResponseStatus(HttpStatus.CREATED)
-    fun createEmailChannel(@RequestBody request: CreateEmailChannelRequest): NotificationChannelResponse {
+    fun createEmailChannel(@Valid @RequestBody request: CreateEmailChannelRequest): NotificationChannelResponse {
         return notificationService.createEmailChannel(request.email).toResponse()
     }
 }
