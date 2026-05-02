@@ -26,3 +26,8 @@ app:
   cors:
     allowed-origins:
       - http://localhost:3000
+  kis:
+    enabled: ${KIS_ENABLED:false}
+    base-url: ${KIS_BASE_URL:https://openapivts.koreainvestment.com:29443}
+    app-key: ${KIS_APP_KEY:}
+    app-secret: ${KIS_APP_SECRET:}

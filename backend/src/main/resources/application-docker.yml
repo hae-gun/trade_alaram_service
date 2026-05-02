@@ -1,14 +1,14 @@
-# local 프로필 설정입니다.
-# 로컬 PostgreSQL의 tradealarm_app 스키마를 사용합니다.
+# Docker Compose 실행 전용 프로필입니다.
+# 컨테이너 네트워크에서는 localhost 대신 compose service name(postgres, redis)을 사용합니다.
 spring:
   data:
     redis:
       repositories:
         enabled: false
-      host: localhost
+      host: redis
       port: 6379
   datasource:
-    url: jdbc:postgresql://localhost:5432/${DB_NAME:tradealarm}?currentSchema=${DB_SCHEMA:tradealarm_app}
+    url: jdbc:postgresql://postgres:5432/${DB_NAME:tradealarm}?currentSchema=${DB_SCHEMA:tradealarm_app}
     driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME:tradealarm_app}
     password: ${DB_PASSWORD:tradealarm_app}

@@ -309,6 +309,36 @@ npm run build
 
 ## 로컬 실행
 
+### Docker Compose
+
+프론트엔드, 백엔드, PostgreSQL, Redis를 한 번에 실행하려면:
+
+```bash
+docker compose -f infra/docker/docker-compose.yml up -d --build
+```
+
+접속 주소:
+
+```text
+Frontend: http://localhost:3000
+Backend:  http://localhost:8080
+Postgres: localhost:5432
+Redis:    localhost:6379
+```
+
+컨테이너 로그 확인:
+
+```bash
+docker compose -f infra/docker/docker-compose.yml logs -f backend
+docker compose -f infra/docker/docker-compose.yml logs -f frontend
+```
+
+종료:
+
+```bash
+docker compose -f infra/docker/docker-compose.yml down
+```
+
 ### Backend
 
 ```bash
@@ -326,6 +356,28 @@ PostgreSQL/Redis를 함께 띄워 local 프로필로 실행하려면:
 ```bash
 docker compose -f infra/docker/docker-compose.yml up -d
 gradle :backend:bootRun --args='--spring.profiles.active=local'
+```
+
+현재 `local` 프로필은 로컬 PostgreSQL의 `tradealarm_app` 스키마를 사용합니다.
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/tradealarm?currentSchema=tradealarm_app
+    username: tradealarm_app
+    password: tradealarm_app
+```
+
+`local` 프로필에서는 Flyway가 `backend/src/main/resources/db/migration`의 마이그레이션을 적용하고, Hibernate는 `ddl-auto=validate`로 엔티티와 스키마 정합성만 확인합니다.
+
+Redis는 local 프로필에서 `localhost:6379`를 사용합니다. 현재 용도는 알림 평가 스케줄러의 중복 실행 방지 lock입니다.
+
+```yaml
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
 ```
 
 ### Frontend

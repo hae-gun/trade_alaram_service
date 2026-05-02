@@ -1,23 +1,70 @@
-# 로컬 개발에 필요한 외부 인프라 구성입니다.
-# PostgreSQL은 영속 데이터 저장소, Redis는 향후 큐/캐시 용도로 사용합니다.
+# 로컬 개발에 필요한 전체 서비스 구성입니다.
+# frontend, backend, PostgreSQL, Redis를 같은 Docker 네트워크에서 실행합니다.
 services:
   postgres:
     image: postgres:16-alpine
     container_name: trade-alarm-postgres
     environment:
-      POSTGRES_DB: tradealarm
-      POSTGRES_USER: tradealarm
-      POSTGRES_PASSWORD: tradealarm
+      POSTGRES_DB: ${DB_NAME:-tradealarm}
+      POSTGRES_USER: ${DB_USERNAME:-tradealarm_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-tradealarm_app}
     ports:
       - "5432:5432"
     volumes:
-      - trade_alarm_postgres:/var/lib/postgresql/data
+      - trade_alarm_postgres_app:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   redis:
     image: redis:7-alpine
     container_name: trade-alarm-redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    container_name: trade-alarm-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_USERNAME: ${DB_USERNAME:-tradealarm_app}
+      DB_PASSWORD: ${DB_PASSWORD:-tradealarm_app}
+      DB_NAME: ${DB_NAME:-tradealarm}
+      DB_SCHEMA: ${DB_SCHEMA:-tradealarm_app}
+      KIS_ENABLED: ${KIS_ENABLED:-false}
+      KIS_BASE_URL: ${KIS_BASE_URL:-https://openapivts.koreainvestment.com:29443}
+      KIS_APP_KEY: ${KIS_APP_KEY:-}
+      KIS_APP_SECRET: ${KIS_APP_SECRET:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    container_name: trade-alarm-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
 
 volumes:
-  trade_alarm_postgres:
+  trade_alarm_postgres_app:
