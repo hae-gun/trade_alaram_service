@@ -1,0 +1,7 @@
+# Frontend Docker build context에서 로컬 산출물을 제외합니다.
+node_modules
+.next
+out
+.env
+.env.*
+!.env.local.example
