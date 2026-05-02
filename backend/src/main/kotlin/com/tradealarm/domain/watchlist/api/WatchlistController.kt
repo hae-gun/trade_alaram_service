@@ -6,6 +6,7 @@ import com.tradealarm.domain.market.application.MarketPriceService
 import com.tradealarm.domain.stock.api.StockResponse
 import com.tradealarm.domain.stock.api.toResponse
 import com.tradealarm.domain.watchlist.application.WatchlistService
+import jakarta.validation.Valid
 import jakarta.validation.constraints.NotNull
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -55,7 +56,7 @@ class WatchlistController(
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    fun add(@RequestBody request: AddWatchlistRequest): WatchlistItemResponse {
+    fun add(@Valid @RequestBody request: AddWatchlistRequest): WatchlistItemResponse {
         val item = watchlistService.add(request.stockId!!)
         val snapshot = marketPriceService.getCurrentPrice(item.stock)
         return WatchlistItemResponse(

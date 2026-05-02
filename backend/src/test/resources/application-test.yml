@@ -1,0 +1,16 @@
+# API 통합 테스트 전용 설정입니다.
+# 테스트도 create-drop 대신 update를 사용하되, 로컬 개발 DB와 격리된 H2 인메모리 DB를 사용합니다.
+spring:
+  datasource:
+    url: jdbc:h2:mem:tradealarmtest;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+

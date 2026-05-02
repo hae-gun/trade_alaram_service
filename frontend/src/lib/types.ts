@@ -41,3 +41,17 @@ export type AlertEvent = {
   status: "PENDING" | "SENT" | "FAILED";
   sentAt: string;
 };
+
+export type NotificationChannel = {
+  id: string;
+  type: "EMAIL" | "KAKAO_ALIMTALK" | "WEB_PUSH";
+  destination: string;
+  verified: boolean;
+  enabled: boolean;
+};
+
+export type User = {
+  id: string;
+  email: string;
+  nickname: string;
+};

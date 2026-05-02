@@ -214,9 +214,9 @@ frontend/src
 
 1. 한국투자증권 Open API 인증/현재가 조회 연동
 2. 이메일 발송 어댑터 구현
-3. 소셜 로그인 provider 설정
-4. PostgreSQL 프로필 기준 마이그레이션 도입
-5. 프론트엔드 관심종목/알림 조건 생성 액션 연결
+3. PostgreSQL 프로필 기준 마이그레이션 도입
+4. 소셜 로그인 provider 설정
+5. 알림 조건 평가 결과를 실제 이메일/카카오 발송과 연결
 6. 카카오 알림톡 템플릿/발송 연동
 
 ## 현재 소스 구성
@@ -228,8 +228,18 @@ frontend/src
 - Spring Web
 - Spring Data JPA
 - Spring Security/OAuth2 Client
-- H2 in-memory DB
+- H2 file DB
 - PostgreSQL driver
+
+현재 소셜 로그인은 제외하고, 모든 MVP API는 `admin@tradealarm.local` 계정을 기준으로 동작합니다.
+
+로컬 기본 DB는 파일 기반 H2입니다.
+
+```text
+backend/data/tradealarm.mv.db
+```
+
+스키마 전략은 `spring.jpa.hibernate.ddl-auto=update`입니다. 로컬 DB 파일은 `.gitignore`에 포함되어 커밋하지 않습니다.
 
 주요 API:
 
@@ -262,12 +272,40 @@ POST   /api/notifications/channels/email
 
 첫 화면은 MVP 대시보드입니다.
 
-- 종목 검색 패널
-- 관심종목 패널
-- 알림 조건 패널
-- 알림 발송 이력 패널
+- 종목 검색 및 관심종목 등록
+- 관심종목 조회/삭제
+- 선택 종목 기준 알림 조건 생성
+- 알림 조건 on/off 및 삭제
+- 이메일 알림 채널 등록
+- 알림 발송 이력 조회
 
-백엔드가 실행 중이면 `http://localhost:8080` API를 호출하고, 백엔드가 꺼져 있으면 fallback 데이터로 화면을 표시합니다.
+프론트엔드는 `http://localhost:8080` 백엔드 API를 호출합니다.
+
+## 테스트
+
+### Backend
+
+```bash
+gradle :backend:test
+```
+
+테스트는 `test` 프로필로 실행되며, 로컬 개발 DB와 분리된 H2 인메모리 DB를 사용합니다. API 통합 테스트는 MockMvc로 HTTP 계약을 검증합니다.
+
+검증 범위:
+
+- `GET /api/users/me`
+- `GET /api/stocks`
+- `POST/GET/DELETE /api/watchlist`
+- `POST/GET/PATCH/DELETE /api/alerts`
+- `POST/GET /api/notifications/channels`
+- 필수 요청값 누락 시 `400 Bad Request`
+
+### Frontend
+
+```bash
+cd frontend
+npm run build
+```
 
 ## 로컬 실행
 

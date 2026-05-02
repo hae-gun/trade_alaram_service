@@ -1,10 +1,10 @@
 # 기본 실행 프로필 설정입니다.
-# H2 인메모리 DB로 바로 실행 가능한 개발용 백엔드 환경을 제공합니다.
+# 로컬 개발 중 서버 재시작 후에도 데이터가 남도록 파일 기반 H2 DB와 update DDL 전략을 사용합니다.
 spring:
   application:
     name: trade-alarm-backend
   datasource:
-    url: jdbc:h2:mem:tradealarm;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    url: jdbc:h2:file:./data/tradealarm;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -13,7 +13,7 @@ spring:
       enabled: true
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true

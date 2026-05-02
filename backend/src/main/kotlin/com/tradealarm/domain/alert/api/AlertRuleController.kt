@@ -8,6 +8,7 @@ import com.tradealarm.domain.alert.domain.AlertType
 import com.tradealarm.domain.alert.domain.RepeatPolicy
 import com.tradealarm.domain.stock.api.StockResponse
 import com.tradealarm.domain.stock.api.toResponse
+import jakarta.validation.Valid
 import jakarta.validation.constraints.NotNull
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -61,7 +62,7 @@ class AlertRuleController(
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    fun create(@RequestBody request: CreateAlertRuleRequest): AlertRuleResponse {
+    fun create(@Valid @RequestBody request: CreateAlertRuleRequest): AlertRuleResponse {
         return alertRuleService.create(
             stockId = request.stockId!!,
             type = request.type!!,

@@ -61,6 +61,7 @@ class AlertRuleService(
         val rule = alertRuleRepository.findById(ruleId)
             .orElseThrow { ApiException(HttpStatus.NOT_FOUND, "Alert rule not found.") }
         rule.enabled = enabled
+        rule.stock.symbol
         return rule
     }
 

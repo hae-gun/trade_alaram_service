@@ -3,10 +3,12 @@
 package com.tradealarm.domain.watchlist.domain
 
 import com.tradealarm.domain.user.domain.User
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 
 interface WatchlistRepository : JpaRepository<WatchlistItem, UUID> {
+    @EntityGraph(attributePaths = ["stock"])
     fun findAllByUserOrderByCreatedAtDesc(user: User): List<WatchlistItem>
     fun existsByUserAndStock_Id(user: User, stockId: UUID): Boolean
     fun deleteByUserAndStock_Id(user: User, stockId: UUID)
