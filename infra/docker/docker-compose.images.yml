@@ -1,0 +1,78 @@
+# CI/CD에서 푸시된 컨테이너 이미지를 로컬에서 실행하기 위한 구성입니다.
+# 로컬 Docker 빌드를 수행하지 않고 registry의 이미지를 pull해서 실행합니다.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-10m}
+    max-file: ${DOCKER_LOG_MAX_FILE:-3}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: trade-alarm-postgres
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: ${DB_NAME:-tradealarm}
+      POSTGRES_USER: ${DB_USERNAME:-tradealarm_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-tradealarm_app}
+    ports:
+      - "5432:5432"
+    volumes:
+      - trade_alarm_postgres_app:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: trade-alarm-redis
+    logging: *default-logging
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/hae-gun/trade_alaram_service-backend:${IMAGE_TAG:-develop}}
+    container_name: trade-alarm-backend
+    logging: *default-logging
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_USERNAME: ${DB_USERNAME:-tradealarm_app}
+      DB_PASSWORD: ${DB_PASSWORD:-tradealarm_app}
+      DB_NAME: ${DB_NAME:-tradealarm}
+      DB_SCHEMA: ${DB_SCHEMA:-tradealarm_app}
+      KIS_ENABLED: ${KIS_ENABLED:-false}
+      KIS_BASE_URL: ${KIS_BASE_URL:-https://openapivts.koreainvestment.com:29443}
+      KIS_APP_KEY: ${KIS_APP_KEY:-}
+      KIS_APP_SECRET: ${KIS_APP_SECRET:-}
+      MARKET_PRICE_REFRESH_DELAY_MS: ${MARKET_PRICE_REFRESH_DELAY_MS:-60000}
+      MARKET_PRICE_INITIAL_DELAY_MS: ${MARKET_PRICE_INITIAL_DELAY_MS:-30000}
+      MARKET_PRICE_REQUEST_DELAY_MS: ${MARKET_PRICE_REQUEST_DELAY_MS:-1500}
+      MARKET_PRICE_ERROR_BACKOFF_MS: ${MARKET_PRICE_ERROR_BACKOFF_MS:-5000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/hae-gun/trade_alaram_service-frontend:${IMAGE_TAG:-develop}}
+    container_name: trade-alarm-frontend
+    logging: *default-logging
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  trade_alarm_postgres_app:
