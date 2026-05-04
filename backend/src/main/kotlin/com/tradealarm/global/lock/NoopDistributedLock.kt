@@ -7,11 +7,10 @@ import org.springframework.stereotype.Component
 import java.time.Duration
 
 @Component
-@Profile("!local")
+@Profile("!local & !docker")
 class NoopDistributedLock : DistributedLock {
     override fun acquire(key: String, ttl: Duration): Boolean = true
 
     override fun release(key: String) {
     }
 }
-

@@ -43,7 +43,7 @@ class WatchlistController(
     @GetMapping
     fun list(): List<WatchlistItemResponse> {
         return watchlistService.getMyWatchlist().map { item ->
-            val snapshot = marketPriceService.getCurrentPrice(item.stock)
+            val snapshot = marketPriceService.getCachedPrice(item.stock)
             WatchlistItemResponse(
                 id = item.id.toString(),
                 stock = item.stock.toResponse(),
@@ -58,7 +58,7 @@ class WatchlistController(
     @ResponseStatus(HttpStatus.CREATED)
     fun add(@Valid @RequestBody request: AddWatchlistRequest): WatchlistItemResponse {
         val item = watchlistService.add(request.stockId!!)
-        val snapshot = marketPriceService.getCurrentPrice(item.stock)
+        val snapshot = marketPriceService.getCachedPrice(item.stock)
         return WatchlistItemResponse(
             id = item.id.toString(),
             stock = item.stock.toResponse(),

@@ -1,9 +1,16 @@
 # 로컬 개발에 필요한 전체 서비스 구성입니다.
 # frontend, backend, PostgreSQL, Redis를 같은 Docker 네트워크에서 실행합니다.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${DOCKER_LOG_MAX_SIZE:-10m}
+    max-file: ${DOCKER_LOG_MAX_FILE:-3}
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: trade-alarm-postgres
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${DB_NAME:-tradealarm}
       POSTGRES_USER: ${DB_USERNAME:-tradealarm_app}
@@ -21,6 +28,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: trade-alarm-redis
+    logging: *default-logging
     ports:
       - "6379:6379"
     healthcheck:
@@ -34,6 +42,7 @@ services:
       context: ../..
       dockerfile: backend/Dockerfile
     container_name: trade-alarm-backend
+    logging: *default-logging
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_USERNAME: ${DB_USERNAME:-tradealarm_app}
@@ -44,6 +53,10 @@ services:
       KIS_BASE_URL: ${KIS_BASE_URL:-https://openapivts.koreainvestment.com:29443}
       KIS_APP_KEY: ${KIS_APP_KEY:-}
       KIS_APP_SECRET: ${KIS_APP_SECRET:-}
+      MARKET_PRICE_REFRESH_DELAY_MS: ${MARKET_PRICE_REFRESH_DELAY_MS:-60000}
+      MARKET_PRICE_INITIAL_DELAY_MS: ${MARKET_PRICE_INITIAL_DELAY_MS:-30000}
+      MARKET_PRICE_REQUEST_DELAY_MS: ${MARKET_PRICE_REQUEST_DELAY_MS:-1500}
+      MARKET_PRICE_ERROR_BACKOFF_MS: ${MARKET_PRICE_ERROR_BACKOFF_MS:-5000}
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,6 +72,7 @@ services:
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
     container_name: trade-alarm-frontend
+    logging: *default-logging
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
     depends_on:

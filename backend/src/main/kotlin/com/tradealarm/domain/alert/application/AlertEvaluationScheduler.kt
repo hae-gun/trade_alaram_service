@@ -35,7 +35,7 @@ class AlertEvaluationScheduler(
                     return@forEach
                 }
 
-                val snapshot = marketPriceService.getCurrentPrice(rule.stock)
+                val snapshot = marketPriceService.getCachedPrice(rule.stock)
                 if (rule.isTriggered(snapshot.price, snapshot.changeRate)) {
                     notificationService.sendAlert(rule, snapshot.price, snapshot.changeRate)
                     rule.lastTriggeredAt = Instant.now()
