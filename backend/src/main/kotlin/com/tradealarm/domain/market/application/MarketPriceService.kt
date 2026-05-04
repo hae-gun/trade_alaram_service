@@ -1,5 +1,5 @@
 // 시세 조회 유스케이스를 담당합니다.
-// KIS 연동이 켜져 있으면 실제 현재가를 저장하고, 꺼져 있으면 기존 mock 가격 흐름을 유지합니다.
+// API 요청은 저장된 최신 스냅샷만 읽고, 외부 시세 갱신은 스케줄러에서 별도로 수행합니다.
 package com.tradealarm.domain.market.application
 
 import com.tradealarm.domain.market.domain.PriceSnapshot
@@ -10,8 +10,6 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.math.RoundingMode
-import java.time.Instant
-import java.time.temporal.ChronoUnit
 import kotlin.math.abs
 
 @Service
@@ -21,11 +19,21 @@ class MarketPriceService(
 ) {
     @Transactional
     fun getCurrentPrice(stock: Stock): PriceSnapshot {
+        return getCachedPrice(stock)
+    }
+
+    @Transactional
+    fun getCachedPrice(stock: Stock): PriceSnapshot {
         val latest = priceSnapshotRepository.findTopByStockOrderByCapturedAtDesc(stock)
-        if (latest.isPresent && latest.get().capturedAt.isAfter(Instant.now().minus(30, ChronoUnit.SECONDS))) {
+        if (latest.isPresent) {
             return latest.get()
         }
 
+        return priceSnapshotRepository.save(createMockSnapshot(stock))
+    }
+
+    @Transactional
+    fun refreshPrice(stock: Stock): PriceSnapshot {
         if (kisCurrentPriceClient.isEnabled()) {
             val currentPrice = kisCurrentPriceClient.getCurrentPrice(stock.symbol)
             return priceSnapshotRepository.save(
@@ -37,17 +45,15 @@ class MarketPriceService(
             )
         }
 
-        if (latest.isPresent) {
-            return latest.get()
-        }
+        return priceSnapshotRepository.save(createMockSnapshot(stock))
+    }
 
-        val basePrice = mockBasePrice(stock.symbol)
-        val snapshot = PriceSnapshot(
+    private fun createMockSnapshot(stock: Stock): PriceSnapshot {
+        return PriceSnapshot(
             stock = stock,
-            price = basePrice,
+            price = mockBasePrice(stock.symbol),
             changeRate = mockChangeRate(stock.symbol),
         )
-        return priceSnapshotRepository.save(snapshot)
     }
 
     private fun mockBasePrice(symbol: String): BigDecimal {

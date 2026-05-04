@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component
 import java.time.Duration
 
 @Component
-@Profile("local")
+@Profile("local | docker")
 class RedisDistributedLock(
     private val redisTemplate: StringRedisTemplate,
 ) : DistributedLock {
@@ -20,4 +20,3 @@ class RedisDistributedLock(
         redisTemplate.delete(key)
     }
 }
-

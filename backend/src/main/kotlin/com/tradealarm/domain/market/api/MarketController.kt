@@ -28,7 +28,7 @@ class MarketController(
     @GetMapping("/stocks/{stockId}/price")
     fun price(@PathVariable stockId: UUID): PriceResponse {
         val stock = stockService.get(stockId)
-        val snapshot = marketPriceService.getCurrentPrice(stock)
+        val snapshot = marketPriceService.getCachedPrice(stock)
         return PriceResponse(
             stockId = stock.id.toString(),
             price = snapshot.price,
