@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+  push:
+    branches:
+      - 'feature/**'
+      - 'fix/**'
+      - 'refactor/**'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend Test And Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Gradle Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/settings.gradle.kts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Backend Test
+        run: >
+          docker run --rm
+          -u root
+          -e GRADLE_USER_HOME=/home/gradle/.gradle
+          -v "${{ github.workspace }}:/workspace"
+          -v "$HOME/.gradle:/home/gradle/.gradle"
+          -w /workspace
+          gradle:8.8-jdk21-alpine
+          gradle :backend:test --no-daemon
+
+      - name: Backend Build
+        run: >
+          docker run --rm
+          -u root
+          -e GRADLE_USER_HOME=/home/gradle/.gradle
+          -v "${{ github.workspace }}:/workspace"
+          -v "$HOME/.gradle:/home/gradle/.gradle"
+          -w /workspace
+          gradle:8.8-jdk21-alpine
+          gradle :backend:build --no-daemon
+
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Npm Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - name: Frontend Install
+        run: >
+          docker run --rm
+          -v "${{ github.workspace }}/frontend:/app"
+          -v "$HOME/.npm:/root/.npm"
+          -w /app
+          node:20-alpine
+          npm ci
+
+      - name: Frontend Build
+        run: >
+          docker run --rm
+          -v "${{ github.workspace }}/frontend:/app"
+          -v "$HOME/.npm:/root/.npm"
+          -w /app
+          -e NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+          node:20-alpine
+          npm run build
+
+  docker-compose:
+    name: Docker Compose Config
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Docker Compose
+        run: docker compose -f infra/docker/docker-compose.yml config
