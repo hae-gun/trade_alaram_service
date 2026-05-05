@@ -18,9 +18,16 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -n "${DOCKER_PLATFORM:-}" ]]; then
+  export DOCKER_DEFAULT_PLATFORM="${DOCKER_PLATFORM}"
+fi
+
 echo "로컬 실행 이미지를 가져옵니다."
 echo "Backend:  ${BACKEND_IMAGE}"
 echo "Frontend: ${FRONTEND_IMAGE}"
+if [[ -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
+  echo "Platform: ${DOCKER_DEFAULT_PLATFORM}"
+fi
 
 docker compose -f "${COMPOSE_FILE}" pull backend frontend
 docker compose -f "${COMPOSE_FILE}" up -d
