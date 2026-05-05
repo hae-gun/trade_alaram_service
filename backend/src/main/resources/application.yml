@@ -31,6 +31,12 @@ app:
     base-url: ${KIS_BASE_URL:https://openapivts.koreainvestment.com:29443}
     app-key: ${KIS_APP_KEY:}
     app-secret: ${KIS_APP_SECRET:}
+  kakao:
+    auth-base-url: ${KAKAO_AUTH_BASE_URL:https://kauth.kakao.com}
+    api-base-url: ${KAKAO_API_BASE_URL:https://kapi.kakao.com}
+    rest-api-key: ${KAKAO_REST_API_KEY:}
+    client-secret: ${KAKAO_CLIENT_SECRET:}
+    redirect-uri: ${KAKAO_REDIRECT_URI:}
   market:
     refresh-delay-ms: ${MARKET_PRICE_REFRESH_DELAY_MS:60000}
     initial-delay-ms: ${MARKET_PRICE_INITIAL_DELAY_MS:30000}
