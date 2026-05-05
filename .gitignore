@@ -22,7 +22,7 @@ backend/data/
 *.trace.db
 
 # Local env
-.env
+infra/docker/.env
 .env.*
 !.env.example
 !frontend/.env.local.example
