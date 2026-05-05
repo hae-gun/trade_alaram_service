@@ -14,3 +14,7 @@ spring:
         format_sql: true
     open-in-view: false
 
+app:
+  kakao:
+    rest-api-key: test-kakao-rest-api-key
+    redirect-uri: http://localhost:3000/auth/kakao/callback
