@@ -3,26 +3,41 @@
 // SNS 로그인 진입 화면입니다.
 // 카카오 OAuth 인가 URL을 구성해 카카오 로그인 화면으로 이동합니다.
 import { Bell, LineChart, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { fetchRuntimeConfig, type RuntimeConfig } from "@/lib/runtimeConfig";
 
 const KAKAO_AUTH_URL = "https://kauth.kakao.com/oauth/authorize";
-const KAKAO_REST_API_KEY = process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY ?? "";
-const KAKAO_REDIRECT_URI = process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI ?? "http://localhost:3000/auth/kakao/callback";
 
 type Props = {
   message?: string;
 };
 
 export function LoginScreen({ message }: Props) {
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig | null>(null);
+  const [configError, setConfigError] = useState("");
+
+  useEffect(() => {
+    async function loadRuntimeConfig() {
+      try {
+        setRuntimeConfig(await fetchRuntimeConfig());
+      } catch (error) {
+        setConfigError(error instanceof Error ? error.message : "런타임 설정을 불러오지 못했습니다.");
+      }
+    }
+
+    void loadRuntimeConfig();
+  }, []);
+
   function handleKakaoLogin() {
-    if (!KAKAO_REST_API_KEY) {
+    if (!runtimeConfig?.kakaoRestApiKey) {
       window.alert("NEXT_PUBLIC_KAKAO_REST_API_KEY 설정이 필요합니다.");
       return;
     }
 
     const params = new URLSearchParams({
       response_type: "code",
-      client_id: KAKAO_REST_API_KEY,
-      redirect_uri: KAKAO_REDIRECT_URI,
+      client_id: runtimeConfig.kakaoRestApiKey,
+      redirect_uri: runtimeConfig.kakaoRedirectUri,
     });
 
     window.location.href = `${KAKAO_AUTH_URL}?${params.toString()}`;
@@ -39,6 +54,7 @@ export function LoginScreen({ message }: Props) {
         <p className="login-copy">국내 주식 관심종목, 알림 조건, 발송 이력을 로그인 후 바로 확인할 수 있습니다.</p>
 
         {message && <div className="login-message">{message}</div>}
+        {configError && <div className="login-message">{configError}</div>}
 
         <button type="button" className="kakao-login-button" onClick={handleKakaoLogin}>
           <MessageCircle size={20} />

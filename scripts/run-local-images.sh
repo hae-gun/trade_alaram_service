@@ -3,6 +3,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${ROOT_DIR}/infra/docker/docker-compose.images.yml"
+ENV_FILE="${ROOT_DIR}/infra/docker/.env"
+COMPOSE_ENV_ARGS=()
+
+if [[ -f "${ENV_FILE}" ]]; then
+  COMPOSE_ENV_ARGS=(--env-file "${ENV_FILE}")
+fi
 
 export IMAGE_TAG="${IMAGE_TAG:-develop}"
 export BACKEND_IMAGE="${BACKEND_IMAGE:-ghcr.io/hae-gun/trade_alaram_service-backend:${IMAGE_TAG}}"
@@ -29,12 +35,12 @@ if [[ -n "${DOCKER_DEFAULT_PLATFORM:-}" ]]; then
   echo "Platform: ${DOCKER_DEFAULT_PLATFORM}"
 fi
 
-docker compose -f "${COMPOSE_FILE}" pull backend frontend
-docker compose -f "${COMPOSE_FILE}" up -d
+docker compose "${COMPOSE_ENV_ARGS[@]}" -f "${COMPOSE_FILE}" pull backend frontend
+docker compose "${COMPOSE_ENV_ARGS[@]}" -f "${COMPOSE_FILE}" up -d
 
 echo
 echo "서비스 실행 상태"
-docker compose -f "${COMPOSE_FILE}" ps
+docker compose "${COMPOSE_ENV_ARGS[@]}" -f "${COMPOSE_FILE}" ps
 
 echo
 echo "Frontend: http://localhost:3000"
