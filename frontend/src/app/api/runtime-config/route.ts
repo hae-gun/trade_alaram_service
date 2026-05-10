@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export function GET() {
   return NextResponse.json({
-    kakaoRestApiKey: process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY ?? "",
-    kakaoRedirectUri: process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI ?? "http://localhost:3000/auth/kakao/callback",
+    kakaoRestApiKey: process.env.KAKAO_REST_API_KEY ?? "",
+    kakaoRedirectUri: process.env.KAKAO_REDIRECT_URI ?? "http://localhost:3000/auth/kakao/callback",
   });
 }
