@@ -82,5 +82,7 @@ jobs:
           labels: ${{ steps.meta_frontend.outputs.labels }}
           build-args: |
             NEXT_PUBLIC_API_BASE_URL=${{ vars.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080' }}
+            NEXT_PUBLIC_KAKAO_REST_API_KEY=${{ vars.NEXT_PUBLIC_KAKAO_REST_API_KEY || '' }}
+            NEXT_PUBLIC_KAKAO_REDIRECT_URI=${{ vars.NEXT_PUBLIC_KAKAO_REDIRECT_URI || 'http://localhost:3000/auth/kakao/callback' }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend

@@ -1,6 +1,15 @@
 // 백엔드 API 호출을 담당하는 클라이언트 모듈입니다.
 // MVP 화면의 조회/생성/삭제/토글 액션을 백엔드 API와 연결합니다.
-import type { AlertEvent, AlertRule, AlertType, NotificationChannel, Stock, User, WatchlistItem } from "@/lib/types";
+import type {
+  AlertEvent,
+  AlertRule,
+  AlertType,
+  KakaoLoginResponse,
+  NotificationChannel,
+  Stock,
+  User,
+  WatchlistItem,
+} from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
@@ -99,5 +108,12 @@ export async function createEmailChannel(email: string): Promise<NotificationCha
   return request<NotificationChannel>("/api/notifications/channels/email", {
     method: "POST",
     body: JSON.stringify({ email }),
+  });
+}
+
+export async function loginWithKakao(authorizationCode: string, redirectUri: string): Promise<KakaoLoginResponse> {
+  return request<KakaoLoginResponse>("/api/auth/kakao/login", {
+    method: "POST",
+    body: JSON.stringify({ authorizationCode, redirectUri }),
   });
 }
