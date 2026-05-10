@@ -3,8 +3,9 @@
 // MVP 대시보드의 클라이언트 상태와 백엔드 API 연결을 담당합니다.
 // admin 사용자 기준으로 종목 검색, 관심종목, 알림 조건, 알림 채널/이력을 한 화면에서 조작합니다.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Bell, LineChart, RefreshCw, Search, Star } from "lucide-react";
+import { Bell, History, LineChart, LogOut, RefreshCw, Search, Star } from "lucide-react";
 import { AlertRules } from "@/features/alerts/AlertRules";
+import { LoginScreen } from "@/features/auth/LoginScreen";
 import { AlertEvents } from "@/features/notifications/AlertEvents";
 import { StockSearch } from "@/features/stocks/StockSearch";
 import { Watchlist } from "@/features/watchlist/Watchlist";
@@ -15,7 +16,6 @@ import {
   deleteAlertRule,
   fetchAlertEvents,
   fetchAlertRules,
-  fetchCurrentUser,
   fetchNotificationChannels,
   fetchStocks,
   fetchWatchlist,
@@ -24,8 +24,11 @@ import {
 } from "@/lib/api";
 import type { AlertEvent, AlertRule, AlertType, NotificationChannel, Stock, User, WatchlistItem } from "@/lib/types";
 
+type ActiveDialog = "alerts" | "events" | null;
+
 export function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
+  const [isSessionReady, setIsSessionReady] = useState(false);
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
@@ -39,6 +42,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
 
   const selectedStock = useMemo(() => {
     return stocks.find((stock) => stock.id === selectedStockId)
@@ -50,8 +54,7 @@ export function Dashboard() {
     setLoading(true);
     setMessage("");
     try {
-      const [nextUser, nextStocks, nextWatchlist, nextRules, nextEvents, nextChannels] = await Promise.all([
-        fetchCurrentUser(),
+      const [nextStocks, nextWatchlist, nextRules, nextEvents, nextChannels] = await Promise.all([
         fetchStocks(nextQuery),
         fetchWatchlist(),
         fetchAlertRules(),
@@ -59,7 +62,6 @@ export function Dashboard() {
         fetchNotificationChannels(),
       ]);
 
-      setUser(nextUser);
       setStocks(nextStocks);
       setWatchlist(nextWatchlist);
       setAlertRules(nextRules);
@@ -74,16 +76,46 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
-    void loadDashboard("");
-  }, [loadDashboard]);
+    const savedUser = window.localStorage.getItem("trade_alarm_user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser) as User);
+      } catch {
+        window.localStorage.removeItem("trade_alarm_user");
+      }
+    }
+    setIsSessionReady(true);
+  }, []);
 
   useEffect(() => {
+    if (!isSessionReady || !user) {
+      return;
+    }
+    void loadDashboard("");
+  }, [isSessionReady, loadDashboard, user]);
+
+  useEffect(() => {
+    if (!isSessionReady || !user) {
+      return;
+    }
+
     const timer = window.setTimeout(() => {
       void loadDashboard(query);
     }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [query, loadDashboard]);
+  }, [query, loadDashboard, isSessionReady, user]);
+
+  function handleLogout() {
+    window.localStorage.removeItem("trade_alarm_user");
+    setUser(null);
+    setStocks([]);
+    setWatchlist([]);
+    setAlertRules([]);
+    setAlertEvents([]);
+    setChannels([]);
+    setActiveDialog(null);
+  }
 
   async function runAction(action: () => Promise<void>, successMessage: string) {
     setBusy(true);
@@ -126,6 +158,14 @@ export function Dashboard() {
     );
   }
 
+  if (!isSessionReady) {
+    return <LoginScreen message="로그인 상태를 확인하고 있습니다." />;
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -136,7 +176,8 @@ export function Dashboard() {
         <nav className="nav-list" aria-label="주요 메뉴">
           <a href="#stocks"><Search size={18} />종목</a>
           <a href="#watchlist"><Star size={18} />관심종목</a>
-          <a href="#alerts"><Bell size={18} />알림</a>
+          <button type="button" onClick={() => setActiveDialog("alerts")}><Bell size={18} />알림 조건</button>
+          <button type="button" onClick={() => setActiveDialog("events")}><History size={18} />발송 이력</button>
         </nav>
       </aside>
 
@@ -152,6 +193,10 @@ export function Dashboard() {
               새로고침
             </button>
             <div className="user-chip">{user?.nickname ?? "admin"}</div>
+            <button type="button" className="icon-button" onClick={handleLogout} aria-label="로그아웃">
+              <LogOut size={16} />
+              로그아웃
+            </button>
           </div>
         </header>
 
@@ -162,14 +207,14 @@ export function Dashboard() {
             <span>관심종목</span>
             <strong>{watchlist.length}</strong>
           </div>
-          <div className="metric">
+          <button type="button" className="metric metric-button" onClick={() => setActiveDialog("alerts")}>
             <span>활성 알림</span>
             <strong>{alertRules.filter((rule) => rule.enabled).length}</strong>
-          </div>
-          <div className="metric">
+          </button>
+          <button type="button" className="metric metric-button" onClick={() => setActiveDialog("events")}>
             <span>발송 이력</span>
             <strong>{alertEvents.length}</strong>
-          </div>
+          </button>
         </section>
 
         <div className="dashboard-grid">
@@ -198,41 +243,61 @@ export function Dashboard() {
               "관심종목에서 삭제했습니다.",
             )}
           />
-          <AlertRules
-            rules={alertRules}
-            selectedStockName={selectedStock?.name ?? ""}
-            alertType={alertType}
-            alertValue={alertValue}
-            onAlertTypeChange={setAlertType}
-            onAlertValueChange={setAlertValue}
-            onCreateAlert={handleCreateAlert}
-            onToggleAlert={(ruleId, enabled) => void runAction(
-              async () => {
-                await toggleAlertRule(ruleId, enabled);
-              },
-              "알림 상태를 변경했습니다.",
-            )}
-            onDeleteAlert={(ruleId) => void runAction(
-              async () => {
-                await deleteAlertRule(ruleId);
-              },
-              "알림 조건을 삭제했습니다.",
-            )}
-          />
-          <AlertEvents
-            events={alertEvents}
-            channels={channels}
-            email={email}
-            onEmailChange={setEmail}
-            onCreateEmailChannel={() => void runAction(
-              async () => {
-                await createEmailChannel(email);
-              },
-              "이메일 채널을 등록했습니다.",
-            )}
-          />
         </div>
       </section>
+
+      {activeDialog === "alerts" && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setActiveDialog(null)}>
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-label="알림 조건" onMouseDown={(event) => event.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => setActiveDialog(null)} aria-label="닫기">
+              닫기
+            </button>
+            <AlertRules
+              rules={alertRules}
+              selectedStockName={selectedStock?.name ?? ""}
+              alertType={alertType}
+              alertValue={alertValue}
+              onAlertTypeChange={setAlertType}
+              onAlertValueChange={setAlertValue}
+              onCreateAlert={handleCreateAlert}
+              onToggleAlert={(ruleId, enabled) => void runAction(
+                async () => {
+                  await toggleAlertRule(ruleId, enabled);
+                },
+                "알림 상태를 변경했습니다.",
+              )}
+              onDeleteAlert={(ruleId) => void runAction(
+                async () => {
+                  await deleteAlertRule(ruleId);
+                },
+                "알림 조건을 삭제했습니다.",
+              )}
+            />
+          </div>
+        </div>
+      )}
+
+      {activeDialog === "events" && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setActiveDialog(null)}>
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-label="발송 이력" onMouseDown={(event) => event.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => setActiveDialog(null)} aria-label="닫기">
+              닫기
+            </button>
+            <AlertEvents
+              events={alertEvents}
+              channels={channels}
+              email={email}
+              onEmailChange={setEmail}
+              onCreateEmailChannel={() => void runAction(
+                async () => {
+                  await createEmailChannel(email);
+                },
+                "이메일 채널을 등록했습니다.",
+              )}
+            />
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -1,17 +1,18 @@
 /* 전역 스타일시트입니다.
    MVP 대시보드의 색상 토큰, 레이아웃, 패널, 목록, 반응형 규칙을 정의합니다. */
 :root {
-  --bg: #f4f6f8;
+  --bg: #eef3f1;
   --surface: #ffffff;
-  --surface-muted: #eef2f5;
-  --text: #17202a;
-  --muted: #687382;
-  --line: #dce3ea;
-  --primary: #146c63;
-  --primary-strong: #0e514b;
-  --danger: #c94545;
-  --success: #198754;
-  --shadow: 0 12px 30px rgba(21, 34, 50, 0.08);
+  --surface-muted: #f3f6f5;
+  --text: #16211f;
+  --muted: #66736f;
+  --line: #d7e0dd;
+  --primary: #107568;
+  --primary-strong: #0a574e;
+  --accent: #2f5f98;
+  --danger: #c94a4a;
+  --success: #16825f;
+  --shadow: 0 16px 42px rgba(23, 42, 37, 0.1);
 }
 
 * {
@@ -33,20 +34,22 @@ a {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
 .app-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .sidebar {
-  background: #14213d;
+  background: #102a28;
   color: #ffffff;
   padding: 24px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .brand {
@@ -62,23 +65,29 @@ input {
   gap: 8px;
 }
 
-.nav-list a {
+.nav-list a,
+.nav-list button {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 40px;
   padding: 0 10px;
   border-radius: 8px;
+  border: 0;
+  background: transparent;
   color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  text-align: left;
 }
 
-.nav-list a:hover {
+.nav-list a:hover,
+.nav-list button:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
 
 .content {
-  padding: 28px;
+  padding: 30px;
 }
 
 .topbar {
@@ -102,7 +111,8 @@ input {
 }
 
 .topbar h1 {
-  font-size: 28px;
+  font-size: 30px;
+  line-height: 1.18;
 }
 
 .panel h2 {
@@ -166,6 +176,18 @@ input {
   padding: 18px;
 }
 
+.metric-button {
+  width: 100%;
+  border: 1px solid var(--line);
+  text-align: left;
+  cursor: pointer;
+}
+
+.metric-button:hover {
+  border-color: rgba(16, 117, 104, 0.45);
+  box-shadow: 0 16px 38px rgba(16, 117, 104, 0.12);
+}
+
 .metric span {
   display: block;
   color: var(--muted);
@@ -181,6 +203,10 @@ input {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.dashboard-grid .panel {
+  min-height: 520px;
 }
 
 .panel {
@@ -228,11 +254,12 @@ input {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: #ffffff;
 }
 
 .selected-row {
   border-color: var(--primary);
-  background: #f3fbf8;
+  background: #f2faf7;
 }
 
 .list-row div {
@@ -280,6 +307,11 @@ input {
   color: var(--text);
   cursor: pointer;
   white-space: nowrap;
+}
+
+.icon-button:hover {
+  border-color: #bdcbc7;
+  background: var(--surface-muted);
 }
 
 .icon-button:disabled,
@@ -366,6 +398,137 @@ input {
   font-weight: 700;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(10, 24, 22, 0.58);
+}
+
+.modal-panel {
+  position: relative;
+  width: min(980px, 100%);
+  max-height: min(86vh, 820px);
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 28px 90px rgba(5, 15, 13, 0.34);
+}
+
+.modal-panel .panel {
+  border: 0;
+  box-shadow: none;
+}
+
+.modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(16, 117, 104, 0.14), transparent 34%),
+    linear-gradient(315deg, rgba(47, 95, 152, 0.12), transparent 38%),
+    var(--bg);
+}
+
+.login-panel {
+  width: min(520px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow);
+  padding: 34px;
+}
+
+.login-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.login-panel h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.18;
+  letter-spacing: 0;
+}
+
+.login-copy {
+  margin: 14px 0 24px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.login-message {
+  margin-bottom: 14px;
+  border: 1px solid #f0d383;
+  border-radius: 8px;
+  background: #fff8e5;
+  color: #735515;
+  padding: 12px;
+  font-weight: 700;
+}
+
+.kakao-login-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #f0d900;
+  border-radius: 8px;
+  background: #fee500;
+  color: #191600;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.kakao-login-button:hover {
+  background: #f6dd00;
+}
+
+.login-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.login-feature-grid div {
+  display: grid;
+  gap: 8px;
+  min-height: 84px;
+  align-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .empty-state {
   border: 1px dashed var(--line);
   border-radius: 8px;
@@ -400,7 +563,7 @@ input {
   }
 
   .nav-list {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .content {
@@ -439,5 +602,22 @@ input {
 
   .price-cell {
     text-align: left;
+  }
+
+  .modal-backdrop {
+    padding: 10px;
+    align-items: end;
+  }
+
+  .modal-panel {
+    max-height: 92vh;
+  }
+
+  .login-panel {
+    padding: 24px;
+  }
+
+  .login-feature-grid {
+    grid-template-columns: 1fr;
   }
 }

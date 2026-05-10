@@ -76,10 +76,14 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+        NEXT_PUBLIC_KAKAO_REST_API_KEY: ${NEXT_PUBLIC_KAKAO_REST_API_KEY:-}
+        NEXT_PUBLIC_KAKAO_REDIRECT_URI: ${NEXT_PUBLIC_KAKAO_REDIRECT_URI:-http://localhost:3000/auth/kakao/callback}
     container_name: trade-alarm-frontend
     logging: *default-logging
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+      NEXT_PUBLIC_KAKAO_REST_API_KEY: ${NEXT_PUBLIC_KAKAO_REST_API_KEY:-}
+      NEXT_PUBLIC_KAKAO_REDIRECT_URI: ${NEXT_PUBLIC_KAKAO_REDIRECT_URI:-http://localhost:3000/auth/kakao/callback}
     depends_on:
       - backend
     ports:

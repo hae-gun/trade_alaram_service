@@ -55,3 +55,9 @@ export type User = {
   email: string;
   nickname: string;
 };
+
+export type KakaoLoginResponse = {
+  user: User;
+  provider: "KAKAO";
+  isNewUser: boolean;
+};
