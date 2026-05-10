@@ -6,8 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LoginScreen } from "@/features/auth/LoginScreen";
 import { loginWithKakao } from "@/lib/api";
-
-const KAKAO_REDIRECT_URI = process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI ?? "http://localhost:3000/auth/kakao/callback";
+import { fetchRuntimeConfig } from "@/lib/runtimeConfig";
 
 function KakaoCallbackContent() {
   const router = useRouter();
@@ -32,7 +31,8 @@ function KakaoCallbackContent() {
 
     async function completeLogin() {
       try {
-        const response = await loginWithKakao(authorizationCode, KAKAO_REDIRECT_URI);
+        const runtimeConfig = await fetchRuntimeConfig();
+        const response = await loginWithKakao(authorizationCode, runtimeConfig.kakaoRedirectUri);
         window.localStorage.setItem("trade_alarm_user", JSON.stringify(response.user));
         router.replace("/");
       } catch (loginError) {
