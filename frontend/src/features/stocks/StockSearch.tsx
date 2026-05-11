@@ -1,6 +1,6 @@
 // 종목 검색 패널 컴포넌트입니다.
 // 백엔드 종목 검색 API 결과를 표시하고 관심종목 추가 액션을 호출합니다.
-import { Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import type { Stock } from "@/lib/types";
 
 type Props = {
@@ -49,7 +49,8 @@ export function StockSearch({
             <div className="row-actions">
               <span className="market-badge">{stock.market}</span>
               <button type="button" className="icon-button" onClick={() => onSelectStock(stock.id)}>
-                선택
+                <Bell size={16} />
+                알림 설정
               </button>
               <button type="button" className="primary-button" onClick={() => onAddWatchlist(stock.id)}>
                 관심등록

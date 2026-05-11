@@ -131,6 +131,12 @@ export function Dashboard() {
     }
   }
 
+  function openAlertDialogForStock(stockId: string) {
+    setSelectedStockId(stockId);
+    setAlertValue("");
+    setActiveDialog("alerts");
+  }
+
   function handleCreateAlert() {
     if (!selectedStockId) {
       setMessage("알림을 만들 종목을 먼저 선택하세요.");
@@ -223,7 +229,7 @@ export function Dashboard() {
             query={query}
             selectedStockId={selectedStockId}
             onQueryChange={setQuery}
-            onSelectStock={setSelectedStockId}
+            onSelectStock={openAlertDialogForStock}
             onAddWatchlist={(stockId) => void runAction(
               async () => {
                 await addWatchlistItem(stockId);
@@ -235,7 +241,7 @@ export function Dashboard() {
           <Watchlist
             items={watchlist}
             selectedStockId={selectedStockId}
-            onSelectStock={setSelectedStockId}
+            onSelectStock={openAlertDialogForStock}
             onRemoveWatchlist={(stockId) => void runAction(
               async () => {
                 await removeWatchlistItem(stockId);

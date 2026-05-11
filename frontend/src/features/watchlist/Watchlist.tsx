@@ -1,6 +1,6 @@
 // 관심종목 패널 컴포넌트입니다.
 // 관심종목별 현재가/등락률을 표시하고 삭제 또는 알림 대상 선택 액션을 제공합니다.
-import { Star } from "lucide-react";
+import { Bell, Star } from "lucide-react";
 import { formatPrice, formatRate } from "@/lib/format";
 import type { WatchlistItem } from "@/lib/types";
 
@@ -37,7 +37,8 @@ export function Watchlist({ items, selectedStockId, onSelectStock, onRemoveWatch
                   <span className={isUp ? "rate-up" : "rate-down"}>{formatRate(item.changeRate)}</span>
                 </div>
                 <button type="button" className="icon-button" onClick={() => onSelectStock(item.stock.id)}>
-                  선택
+                  <Bell size={16} />
+                  알림 설정
                 </button>
                 <button type="button" className="danger-button" onClick={() => onRemoveWatchlist(item.stock.id)}>
                   삭제
