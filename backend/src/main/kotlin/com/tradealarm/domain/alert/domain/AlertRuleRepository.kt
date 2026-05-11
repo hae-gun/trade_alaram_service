@@ -11,11 +11,14 @@ import java.util.UUID
 
 interface AlertRuleRepository : JpaRepository<AlertRule, UUID> {
     @EntityGraph(attributePaths = ["stock"])
-    fun findAllByUserOrderByCreatedAtDesc(user: User): List<AlertRule>
+    fun findAllByUserAndDeletedIsFalseOrderByCreatedAtDesc(user: User): List<AlertRule>
 
     @EntityGraph(attributePaths = ["user", "stock"])
-    fun findAllByEnabledIsTrue(): List<AlertRule>
+    fun findAllByEnabledIsTrueAndDeletedIsFalse(): List<AlertRule>
 
-    @Query("select distinct rule.stock from AlertRule rule where rule.enabled = true and rule.stock.enabled = true")
+    @Query(
+        "select distinct rule.stock from AlertRule rule " +
+            "where rule.enabled = true and rule.deleted = false and rule.stock.enabled = true",
+    )
     fun findDistinctEnabledStocks(): List<Stock>
 }

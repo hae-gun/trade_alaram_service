@@ -59,6 +59,9 @@ class AlertRule(
     @Column(nullable = false)
     var enabled: Boolean = true,
 
+    @Column(nullable = false)
+    var deleted: Boolean = false,
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var repeatPolicy: RepeatPolicy = RepeatPolicy.ONCE,
