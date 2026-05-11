@@ -24,7 +24,7 @@ class AlertRuleService(
     @Transactional(readOnly = true)
     fun getMyRules(): List<AlertRule> {
         val user = demoUserService.getOrCreateDemoUser()
-        return alertRuleRepository.findAllByUserOrderByCreatedAtDesc(user)
+        return alertRuleRepository.findAllByUserAndDeletedIsFalseOrderByCreatedAtDesc(user)
     }
 
     @Transactional
@@ -67,6 +67,9 @@ class AlertRuleService(
 
     @Transactional
     fun delete(ruleId: UUID) {
-        alertRuleRepository.deleteById(ruleId)
+        val rule = alertRuleRepository.findById(ruleId)
+            .orElseThrow { ApiException(HttpStatus.NOT_FOUND, "Alert rule not found.") }
+        rule.enabled = false
+        rule.deleted = true
     }
 }

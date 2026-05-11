@@ -30,7 +30,7 @@ class AlertEvaluationScheduler(
         }
 
         try {
-            alertRuleRepository.findAllByEnabledIsTrue().forEach { rule ->
+            alertRuleRepository.findAllByEnabledIsTrueAndDeletedIsFalse().forEach { rule ->
                 if (!canTrigger(rule.lastTriggeredAt, rule.repeatPolicy)) {
                     return@forEach
                 }

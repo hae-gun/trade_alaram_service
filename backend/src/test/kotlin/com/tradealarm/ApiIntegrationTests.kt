@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.tradealarm.domain.alert.domain.AlertRuleRepository
 import com.tradealarm.domain.market.domain.PriceSnapshotRepository
+import com.tradealarm.domain.notification.domain.AlertEvent
 import com.tradealarm.domain.notification.domain.AlertEventRepository
 import com.tradealarm.domain.notification.domain.NotificationChannelRepository
 import com.tradealarm.domain.user.domain.UserRepository
@@ -157,6 +158,57 @@ class ApiIntegrationTests @Autowired constructor(
             .andExpect {
                 status { isOk() }
                 jsonPath("$", hasSize<Any>(0))
+            }
+    }
+
+    @Test
+    fun `발송 이력이 있는 알림 조건도 삭제하면 목록에서 제외하고 이력은 보존한다`() {
+        val stockId = firstStockId()
+
+        val createdRule = mockMvc.post("/api/alerts") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """
+                {
+                  "stockId": "$stockId",
+                  "type": "ABOVE_PRICE",
+                  "targetPrice": 100,
+                  "repeatPolicy": "COOLDOWN"
+                }
+            """.trimIndent()
+        }.andExpect {
+            status { isCreated() }
+        }.andReturn().response.contentAsString.contentAsJson()
+
+        val ruleId = createdRule["id"].asText()
+        val rule = alertRuleRepository.findAllByEnabledIsTrueAndDeletedIsFalse()
+            .first { it.id.toString() == ruleId }
+        alertEventRepository.save(
+            AlertEvent(
+                user = rule.user,
+                alertRule = rule,
+                stock = rule.stock,
+                triggerPrice = rule.targetPrice!!,
+                triggerChangeRate = java.math.BigDecimal.ZERO,
+                message = "테스트 알림",
+            ),
+        )
+
+        mockMvc.delete("/api/alerts/$ruleId")
+            .andExpect {
+                status { isNoContent() }
+            }
+
+        mockMvc.get("/api/alerts")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$", hasSize<Any>(0))
+            }
+
+        mockMvc.get("/api/notifications/events")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$", hasSize<Any>(1))
+                jsonPath("$[0].message") { value("테스트 알림") }
             }
     }
 
