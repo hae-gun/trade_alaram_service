@@ -1,320 +1,236 @@
 # trade_alaram_service
 
-국내 주식 관심종목을 등록하고, 사용자가 설정한 가격/변동률 조건에 도달했을 때 알림을 보내는 주식 가격 알리미 서비스입니다.
+국내 주식 관심종목을 등록하고, 사용자가 설정한 가격/등락률 조건에 도달하면 알림을 보내는 주식 가격 알림 서비스입니다.
+자동매매는 포함하지 않으며, 현재 목표는 **검증 가능한 가격 알림 MVP**입니다.
 
-초기 목표는 자동매매가 아니라 **검증 가능한 가격 알림 MVP**입니다. 이후 모의매매, 전략 검증, 자동매매로 확장할 수 있도록 백엔드와 프론트엔드를 분리한 모노레포 구조로 시작합니다.
+## 주요 기능
 
-## 1차 MVP 범위
-
-- 소셜 로그인 기반 사용자 관리
-- 국내 주식 종목 목록/검색
+- 카카오 소셜 로그인
+- 국내 주식 종목 검색
 - 관심종목 등록/삭제
-- 종목별 가격/변동률 알림 조건 등록
-- 관심종목 가격 감시
-- 조건 충족 시 이메일 또는 카카오 알림 발송
-- 알림 발송 이력 관리
+- 종목 선택 시 알림 조건 팝업 생성
+- 목표가 이상/이하, 상승률/하락률 알림 조건
+- 관심종목 및 활성 알림 종목의 현재가 주기 갱신
+- 알림 조건 평가 및 중복 발송 방지
+- Slack Webhook 알림 송신
+- 알림 발송 이력 조회
+- Docker Compose 기반 로컬 실행
+- GitHub Actions 기반 CI/CD 및 GHCR 이미지 배포
 
 ## 프로젝트 구조
 
 ```text
 .
-├── backend
-│   └── src
-│       ├── main
-│       │   ├── kotlin/com/tradealarm
-│       │   │   ├── global
-│       │   │   └── domain
-│       │   └── resources
-│       └── test/kotlin/com/tradealarm
-├── frontend
-│   └── src
-│       ├── app
-│       ├── components
-│       ├── features
-│       ├── lib
-│       └── styles
-├── infra
-│   └── docker
+├── backend                 # Kotlin + Spring Boot API 서버
+├── frontend                # Next.js 대시보드
+├── infra/docker            # Docker Compose 설정
+├── scripts                 # 로컬 실행 스크립트
+└── .github/workflows       # CI/CD 워크플로우
 ```
 
 ## Backend
 
-백엔드는 Kotlin 기반 Spring Boot 구조입니다. 도메인별로 API, 유스케이스, 도메인 모델, 외부 연동 코드를 분리합니다.
-
-### `backend/src/main/kotlin/com/tradealarm/global`
-
-전역 공통 관심사를 모아둡니다.
+백엔드는 Kotlin/Spring Boot 기반 모듈형 모놀리식 구조입니다.
 
 ```text
-global
-├── config
-├── security
-├── exception
-└── common
+backend/src/main/kotlin/com/tradealarm
+├── domain
+│   ├── auth                # 카카오 로그인
+│   ├── user                # 사용자
+│   ├── stock               # 종목
+│   ├── watchlist           # 관심종목
+│   ├── market              # KIS 현재가 조회 및 가격 스냅샷
+│   ├── alert               # 알림 조건 및 평가
+│   └── notification        # Slack 송신 및 발송 이력
+└── global                  # 공통 설정, 예외, 보안, lock
 ```
 
-- `config`: Spring 설정, Jackson, CORS, Scheduler, OpenAPI 문서 설정 등
-- `security`: OAuth2 로그인, JWT/세션, 인증 사용자 처리
-- `exception`: 공통 예외, 에러 응답, 글로벌 예외 핸들러
-- `common`: 공통 응답, 날짜/시간 유틸, 페이지 응답, 공통 상수
+### 시세 갱신
 
-### `backend/src/main/kotlin/com/tradealarm/domain`
+관심종목과 활성 알림 조건에 연결된 종목을 주기적으로 갱신합니다.
 
-서비스의 핵심 업무 도메인을 분리합니다.
+- 스케줄러: `MarketPriceRefreshScheduler`
+- 기본 최초 지연: `MARKET_PRICE_INITIAL_DELAY_MS=30000`
+- 기본 반복 주기: `MARKET_PRICE_REFRESH_DELAY_MS=60000`
+- 종목 간 요청 간격: `MARKET_PRICE_REQUEST_DELAY_MS=1500`
+- KIS가 비활성화되어 있거나 캐시가 없으면 MVP용 mock 스냅샷을 생성합니다.
+
+운영 KIS를 쓰려면 `.env`에 운영 URL과 운영 키를 설정해야 합니다.
+
+```env
+KIS_ENABLED=true
+KIS_BASE_URL=https://openapi.koreainvestment.com:9443
+KIS_APP_KEY=
+KIS_APP_SECRET=
+```
+
+모의투자 URL은 아래 값입니다.
+
+```env
+KIS_BASE_URL=https://openapivts.koreainvestment.com:29443
+```
+
+### 알림 평가
+
+- 스케줄러: `AlertEvaluationScheduler`
+- 평가 주기: 60초
+- 평가 대상: `enabled=true`이고 `deleted=false`인 알림 조건
+- 조건 충족 시 `alert_events`에 발송 이력을 저장합니다.
+
+알림 조건:
 
 ```text
-domain
-├── auth
-├── user
-├── stock
-├── watchlist
-├── alert
-├── notification
-└── market
+ABOVE_PRICE: 현재가 >= 목표가
+BELOW_PRICE: 현재가 <= 목표가
+UP_RATE:     현재 등락률 >= 설정 등락률
+DOWN_RATE:   현재 등락률 <= -설정 등락률
 ```
 
-각 도메인은 기본적으로 아래 계층을 가집니다.
+반복 정책:
 
 ```text
-api
-application
-domain
-infra
+ONCE:     1회 발송 후 조건 비활성화
+COOLDOWN: 마지막 발송 후 30분이 지나야 재발송
 ```
 
-- `api`: Controller, request/response DTO
-- `application`: 서비스 유스케이스, 트랜잭션 경계, 도메인 조합 로직
-- `domain`: Entity, 값 객체, 도메인 정책, Repository 인터페이스
-- `infra`: JPA 구현체, 외부 API Client, 메시지/메일 발송 어댑터
+삭제된 알림 조건은 soft delete 처리되어 발송 이력 참조는 보존하고, 목록/평가 대상에서는 제외합니다.
 
-### `domain/auth`
+### Slack 알림
 
-소셜 로그인과 인증 흐름을 담당합니다.
+Slack은 Incoming Webhook 기반입니다. Webhook은 채널 단위이므로 기본적으로 하나의 Slack 채널에 메시지를 보냅니다.
+사용자별 구분이 필요하면 Slack user id 또는 mention 값을 알림 채널로 등록해 메시지 앞에 mention을 붙입니다.
 
-- OAuth2 provider 연동
-- 로그인 성공 후 사용자 식별
-- 토큰 또는 세션 발급
-- 인증 사용자 조회
+환경변수:
 
-### `domain/user`
+```env
+SLACK_ENABLED=true
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+```
 
-사용자 프로필과 사용자별 설정을 담당합니다.
+사용자별 Slack mention 등록:
 
-- 사용자 기본 정보
-- 알림 수신 동의
-- 기본 알림 채널
-- 계정 상태 관리
+```bash
+curl -X POST http://localhost:8080/api/notifications/channels/slack \
+  -H "Content-Type: application/json" \
+  -d '{"mention":"U123456"}'
+```
 
-### `domain/stock`
+알림 이력 상태:
 
-주식 종목 마스터 데이터를 담당합니다.
-
-- 국내 주식 종목 코드/종목명/시장 구분 저장
-- 종목 검색
-- 종목 활성/비활성 관리
-- 한국투자증권 또는 외부 데이터 기준 종목 동기화
-
-### `domain/watchlist`
-
-사용자 관심종목을 담당합니다.
-
-- 관심종목 추가/삭제
-- 사용자별 관심종목 목록 조회
-- 가격 감시 대상 종목 산출
-
-### `domain/alert`
-
-가격 알림 규칙과 조건 평가를 담당합니다.
-
-- 목표가 이상/이하 알림
-- 전일 대비 상승률/하락률 알림
-- 중복 알림 방지
-- 알림 재발송 정책
-- 조건 충족 이벤트 기록
-
-### `domain/notification`
-
-알림 채널과 실제 발송을 담당합니다.
-
-- 이메일 발송
-- 카카오 알림톡 연동
-- 향후 Web Push/FCM 확장
-- 발송 성공/실패 이력 관리
-
-### `domain/market`
-
-외부 시세 데이터 연동과 가격 감시 작업을 담당합니다.
-
-- 한국투자증권 Open API 연동
-- 현재가 조회
-- 장 운영시간/휴장일 처리
-- 관심종목 가격 polling 또는 websocket 구독
-- 가격 스냅샷 저장
+```text
+PENDING: Slack 비활성화
+SENT:    Slack Webhook 전송 성공
+FAILED:  Slack Webhook 전송 실패
+```
 
 ## Frontend
 
-프론트엔드는 Next.js 기반 React 구조입니다. 모바일 웹/PWA 확장을 고려합니다.
+프론트엔드는 Next.js 14, React 18, TypeScript 기반입니다.
 
 ```text
 frontend/src
 ├── app
-├── components
 ├── features
+│   ├── auth
+│   ├── stocks
+│   ├── watchlist
+│   ├── alerts
+│   └── notifications
 ├── lib
 └── styles
 ```
 
-- `app`: 라우팅, 페이지, 앱 진입점
-- `components`: 버튼, 입력창, 모달, 테이블 등 재사용 UI
-- `features/auth`: 로그인/로그아웃 화면과 인증 상태
-- `features/stocks`: 종목 검색, 종목 상세
-- `features/watchlist`: 관심종목 목록과 편집
-- `features/alerts`: 알림 조건 생성/수정/삭제
-- `features/notifications`: 알림 이력과 알림 채널 설정
-- `lib`: API client, date/number formatter, 공통 helper
-- `styles`: 전역 스타일, 토큰, 레이아웃 스타일
+주요 화면 흐름:
 
-## Docs
+- Kakao SNS 로그인 화면
+- 종목 검색
+- 관심종목 관리
+- 종목 선택 시 알림 설정 팝업
+- 알림 조건 팝업
+- 발송 이력 팝업
 
-`docs`는 기획과 설계 문서를 관리합니다.
-
-- API 명세
-- 데이터 모델
-- 알림 정책
-- 한국투자증권 API 조사 내용
-- 운영/배포 체크리스트
-- 추후 자동매매 확장 설계
-
-## Infra
-
-`infra`는 로컬 개발과 배포 환경 구성을 관리합니다.
-
-- `infra/docker`: PostgreSQL, Redis, backend, frontend 등의 Docker 설정
-- 추후 AWS/GCP/Naver Cloud 배포 리소스 정의
-
-## Scripts
-
-`scripts`는 반복 작업을 자동화하는 스크립트를 관리합니다.
-
-- 종목 마스터 동기화
-- 로컬 개발 환경 초기화
-- 테스트 데이터 생성
-- 배포 보조 스크립트
-
-## 설계 원칙
-
-- 가격 알림 MVP와 자동매매 기능을 분리한다.
-- 처음에는 관심종목만 감시한다.
-- 알림은 중복 발송을 방지한다.
-- 외부 API 연동 코드는 `infra`에 격리한다.
-- 도메인 정책은 `domain`에 두고, Controller에 업무 로직을 넣지 않는다.
-- 카카오 알림톡은 템플릿 심사와 정책 제약이 있으므로 이메일/Web Push와 병행 가능하게 설계한다.
-
-## 다음 구현 순서
-
-1. 한국투자증권 Open API 인증/현재가 조회 연동
-2. 이메일 발송 어댑터 구현
-3. PostgreSQL 프로필 기준 마이그레이션 도입
-4. 소셜 로그인 provider 설정
-5. 알림 조건 평가 결과를 실제 이메일/카카오 발송과 연결
-6. 카카오 알림톡 템플릿/발송 연동
-
-## 현재 소스 구성
-
-### Backend
-
-- Kotlin 1.9.25
-- Spring Boot 3.3.5
-- Spring Web
-- Spring Data JPA
-- Spring Security/OAuth2 Client
-- H2 file DB
-- PostgreSQL driver
-
-현재 소셜 로그인은 제외하고, 모든 MVP API는 `admin@tradealarm.local` 계정을 기준으로 동작합니다.
-
-로컬 기본 DB는 파일 기반 H2입니다.
+프론트는 런타임 설정 API에서 카카오 공개 설정을 읽습니다.
 
 ```text
-backend/data/tradealarm.mv.db
+GET /api/runtime-config
 ```
 
-스키마 전략은 `spring.jpa.hibernate.ddl-auto=update`입니다. 로컬 DB 파일은 `.gitignore`에 포함되어 커밋하지 않습니다.
+## API
 
 주요 API:
 
 ```text
 GET    /api/users/me
+
 GET    /api/stocks
 GET    /api/stocks/{stockId}
+
 GET    /api/watchlist
 POST   /api/watchlist
 DELETE /api/watchlist/{stockId}
+
+GET    /api/market/stocks/{stockId}/price
+
 GET    /api/alerts
 POST   /api/alerts
 PATCH  /api/alerts/{ruleId}
 DELETE /api/alerts/{ruleId}
-GET    /api/market/stocks/{stockId}/price
+
 GET    /api/notifications/events
 GET    /api/notifications/channels
 POST   /api/notifications/channels/email
+POST   /api/notifications/channels/slack
+
+POST   /api/auth/kakao/login
 ```
 
-초기 실행 시 삼성전자, SK하이닉스, NAVER, 카카오 등 샘플 종목이 H2 DB에 적재됩니다. 현재 시세는 한국투자증권 연동 전 단계이므로 mock 가격을 생성합니다.
+## 환경변수
 
-### Frontend
+실제 값은 `infra/docker/.env`에 작성합니다. `.env`는 Git에 포함하지 않습니다.
+샘플은 `.env.example`을 참고하세요.
 
-- Next.js 14
-- React 18
-- TypeScript
-- App Router
-- lucide-react
+필수 또는 주요 변수:
 
-첫 화면은 MVP 대시보드입니다.
+```env
+DB_NAME=tradealarm
+DB_SCHEMA=tradealarm_app
+DB_USERNAME=tradealarm_app
+DB_PASSWORD=tradealarm_app
 
-- 종목 검색 및 관심종목 등록
-- 관심종목 조회/삭제
-- 선택 종목 기준 알림 조건 생성
-- 알림 조건 on/off 및 삭제
-- 이메일 알림 채널 등록
-- 알림 발송 이력 조회
+KIS_ENABLED=false
+KIS_BASE_URL=https://openapivts.koreainvestment.com:29443
+KIS_APP_KEY=
+KIS_APP_SECRET=
 
-프론트엔드는 `http://localhost:8080` 백엔드 API를 호출합니다.
+KAKAO_REST_API_KEY=
+KAKAO_CLIENT_SECRET=
+KAKAO_REDIRECT_URI=http://localhost:3000/auth/kakao/callback
 
-## 테스트
+SLACK_ENABLED=false
+SLACK_WEBHOOK_URL=
 
-### Backend
-
-```bash
-gradle :backend:test
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_KAKAO_REST_API_KEY=
+NEXT_PUBLIC_KAKAO_REDIRECT_URI=http://localhost:3000/auth/kakao/callback
 ```
 
-테스트는 `test` 프로필로 실행되며, 로컬 개발 DB와 분리된 H2 인메모리 DB를 사용합니다. API 통합 테스트는 MockMvc로 HTTP 계약을 검증합니다.
+주의:
 
-검증 범위:
-
-- `GET /api/users/me`
-- `GET /api/stocks`
-- `POST/GET/DELETE /api/watchlist`
-- `POST/GET/PATCH/DELETE /api/alerts`
-- `POST/GET /api/notifications/channels`
-- 필수 요청값 누락 시 `400 Bad Request`
-
-### Frontend
-
-```bash
-cd frontend
-npm run build
-```
+- Kakao REST API 키는 브라우저에도 노출되는 공개 키입니다.
+- Kakao Admin Key를 `NEXT_PUBLIC_KAKAO_REST_API_KEY`에 넣으면 안 됩니다.
+- `KAKAO_CLIENT_SECRET`은 카카오 Developers에서 Client Secret을 활성화한 경우에만 설정합니다.
+- Slack Webhook URL은 민감정보이므로 코드와 로그에 노출하지 않습니다.
 
 ## 로컬 실행
 
-### Docker Compose
+### 배포된 이미지로 실행
 
-프론트엔드, 백엔드, PostgreSQL, Redis를 한 번에 실행하려면:
+CI/CD에서 GHCR로 push된 이미지를 pull해서 실행합니다. 로컬 Docker 빌드는 수행하지 않습니다.
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml up -d --build
+cp .env.example infra/docker/.env
+# infra/docker/.env 값을 로컬 환경에 맞게 수정
+scripts/run-local-images.sh
 ```
 
 접속 주소:
@@ -322,70 +238,132 @@ docker compose -f infra/docker/docker-compose.yml up -d --build
 ```text
 Frontend: http://localhost:3000
 Backend:  http://localhost:8080
-Postgres: localhost:5432
-Redis:    localhost:6379
 ```
 
-컨테이너 로그 확인:
+`.env` 변경 후 기존 컨테이너에 반영하려면 재생성이 필요합니다.
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml logs -f backend
-docker compose -f infra/docker/docker-compose.yml logs -f frontend
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml up -d --force-recreate backend frontend
 ```
 
-종료:
+완전히 다시 시작하려면:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml down
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml down
+scripts/run-local-images.sh
 ```
 
-### Backend
+### 로컬 Docker Compose 개발 실행
+
+개발용 Compose는 backend/frontend를 로컬 소스에서 빌드합니다.
 
 ```bash
-./gradlew :backend:bootRun
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.yml up -d --build
 ```
 
-현재 저장소에는 Gradle Wrapper가 아직 없을 수 있습니다. 이 경우 로컬 Gradle이 설치되어 있다면 아래 명령을 사용할 수 있습니다.
+프로젝트 규칙상 일반 작업 검증은 Docker Compose 기반으로 수행합니다.
+
+## 로그 확인
+
+전체 로그:
 
 ```bash
-gradle :backend:bootRun
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml logs
 ```
 
-PostgreSQL/Redis를 함께 띄워 local 프로필로 실행하려면:
+서비스별 실시간 로그:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml up -d
-gradle :backend:bootRun --args='--spring.profiles.active=local'
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml logs -f backend
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml logs -f frontend
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml logs -f postgres
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml logs -f redis
 ```
 
-현재 `local` 프로필은 로컬 PostgreSQL의 `tradealarm_app` 스키마를 사용합니다.
+최근 100줄:
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/tradealarm?currentSchema=tradealarm_app
-    username: tradealarm_app
-    password: tradealarm_app
+```bash
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml logs --tail=100 backend
 ```
 
-`local` 프로필에서는 Flyway가 `backend/src/main/resources/db/migration`의 마이그레이션을 적용하고, Hibernate는 `ddl-auto=validate`로 엔티티와 스키마 정합성만 확인합니다.
+컨테이너 상태:
 
-Redis는 local 프로필에서 `localhost:6379`를 사용합니다. 현재 용도는 알림 평가 스케줄러의 중복 실행 방지 lock입니다.
-
-```yaml
-spring:
-  data:
-    redis:
-      host: localhost
-      port: 6379
+```bash
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml ps
 ```
 
-### Frontend
+## 알림 동작 확인
+
+발송 이력 API:
+
+```bash
+curl http://localhost:8080/api/notifications/events
+```
+
+DB 직접 확인:
+
+```bash
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml exec postgres \
+  psql -U tradealarm_app -d tradealarm -c \
+  "select sent_at, message, status, trigger_price, trigger_change_rate from tradealarm_app.alert_events order by sent_at desc limit 20;"
+```
+
+Slack 송신을 확인하려면:
+
+1. `infra/docker/.env`에 `SLACK_ENABLED=true`, `SLACK_WEBHOOK_URL` 설정
+2. backend 컨테이너 재생성
+3. 알림 조건 생성
+4. 조건 충족 후 Slack 채널과 `alert_events.status` 확인
+
+## 테스트
+
+Backend:
+
+```bash
+docker run --rm \
+  -v "$PWD:/workspace" \
+  -v trade_alarm_gradle_cache:/home/gradle/.gradle \
+  -w /workspace/backend \
+  gradle:8.10-jdk21 gradle test
+```
+
+Frontend:
 
 ```bash
 cd frontend
-npm install
-npm run dev
+npm run build
 ```
 
-프론트엔드 기본 주소는 `http://localhost:3000`입니다.
+Compose 설정 검증:
+
+```bash
+docker compose --env-file infra/docker/.env -f infra/docker/docker-compose.images.yml config --quiet
+```
+
+## CI/CD
+
+GitHub Actions:
+
+- CI: PR에서 backend test/build, frontend build, Docker Compose config 검증
+- CD: `develop` push 시 backend/frontend 이미지를 GHCR에 push
+- 이미지 태그:
+  - `develop`
+  - `develop-{commit-sha}`
+
+기본 로컬 이미지:
+
+```text
+ghcr.io/hae-gun/trade_alaram_service-backend:develop
+ghcr.io/hae-gun/trade_alaram_service-frontend:develop
+```
+
+Apple Silicon Mac에서도 실행할 수 있도록 multi-platform 이미지를 push합니다.
+
+## 설계 원칙
+
+- 자동매매와 가격 알림 MVP를 분리합니다.
+- Controller에 비즈니스 로직을 넣지 않습니다.
+- 알림 조건 평가는 테스트 가능한 도메인 로직으로 유지합니다.
+- 민감정보는 환경변수로만 주입합니다.
+- 발송 이력은 보존하고, 알림 조건 삭제는 soft delete로 처리합니다.
+- 외부 송신 실패는 `alert_events.status`로 추적합니다.
