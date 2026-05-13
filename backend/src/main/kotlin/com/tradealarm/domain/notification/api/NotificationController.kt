@@ -26,6 +26,11 @@ data class CreateEmailChannelRequest(
     val email: String,
 )
 
+data class CreateSlackChannelRequest(
+    @field:NotBlank(message = "mention is required.")
+    val mention: String,
+)
+
 data class NotificationChannelResponse(
     val id: String,
     val type: NotificationChannelType,
@@ -64,6 +69,12 @@ class NotificationController(
     @ResponseStatus(HttpStatus.CREATED)
     fun createEmailChannel(@Valid @RequestBody request: CreateEmailChannelRequest): NotificationChannelResponse {
         return notificationService.createEmailChannel(request.email).toResponse()
+    }
+
+    @PostMapping("/channels/slack")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun createSlackChannel(@Valid @RequestBody request: CreateSlackChannelRequest): NotificationChannelResponse {
+        return notificationService.createSlackChannel(request.mention).toResponse()
     }
 }
 

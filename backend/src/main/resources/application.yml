@@ -37,6 +37,9 @@ app:
     rest-api-key: ${KAKAO_REST_API_KEY:}
     client-secret: ${KAKAO_CLIENT_SECRET:}
     redirect-uri: ${KAKAO_REDIRECT_URI:}
+  slack:
+    enabled: ${SLACK_ENABLED:false}
+    webhook-url: ${SLACK_WEBHOOK_URL:}
   market:
     refresh-delay-ms: ${MARKET_PRICE_REFRESH_DELAY_MS:60000}
     initial-delay-ms: ${MARKET_PRICE_INITIAL_DELAY_MS:30000}

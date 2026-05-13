@@ -22,6 +22,7 @@ import java.util.UUID
 
 enum class NotificationChannelType {
     EMAIL,
+    SLACK,
     KAKAO_ALIMTALK,
     WEB_PUSH,
 }

@@ -233,6 +233,26 @@ class ApiIntegrationTests @Autowired constructor(
     }
 
     @Test
+    fun `Slack mention 채널을 등록하고 목록을 조회한다`() {
+        mockMvc.post("/api/notifications/channels/slack") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"mention":"U123456"}"""
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.type") { value("SLACK") }
+            jsonPath("$.destination") { value("U123456") }
+            jsonPath("$.verified") { value(true) }
+        }
+
+        mockMvc.get("/api/notifications/channels")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$", hasSize<Any>(1))
+                jsonPath("$[0].type") { value("SLACK") }
+            }
+    }
+
+    @Test
     fun `필수값이 빠진 요청은 400을 반환한다`() {
         mockMvc.post("/api/watchlist") {
             contentType = MediaType.APPLICATION_JSON
