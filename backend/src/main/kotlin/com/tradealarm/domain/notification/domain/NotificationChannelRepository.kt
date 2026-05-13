@@ -8,4 +8,6 @@ import java.util.UUID
 
 interface NotificationChannelRepository : JpaRepository<NotificationChannel, UUID> {
     fun findAllByUserOrderByTypeAsc(user: User): List<NotificationChannel>
+
+    fun findFirstByUserAndTypeAndEnabledIsTrue(user: User, type: NotificationChannelType): NotificationChannel?
 }
