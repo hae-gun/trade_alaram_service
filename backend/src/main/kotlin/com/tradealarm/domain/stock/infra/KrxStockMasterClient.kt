@@ -37,37 +37,59 @@ class KrxStockMasterClient(
             generateSequence { zip.nextEntry }
                 .filterNot { it.isDirectory }
                 .flatMap {
-                    val content = zip.readBytes().toString(masterCharset)
+                    val content = zip.readBytes()
                     parseKisFixedRows(market, content).asSequence()
                 }
                 .toList()
         }
     }
 
-    private fun parseKisFixedRows(market: Market, body: String): List<StockMasterItem> {
-        return body.lineSequence()
-            .mapNotNull { line ->
-                if (line.length < KIS_NAME_START_INDEX) {
-                    return@mapNotNull null
-                }
-
-                val symbol = line.substring(0, KIS_SYMBOL_LENGTH).trim()
-                if (!symbol.matches(Regex("\\d{6}"))) {
-                    return@mapNotNull null
-                }
-
-                val nameEndIndex = minOf(line.length, KIS_NAME_START_INDEX + KIS_NAME_LENGTH)
-                val name = line.substring(KIS_NAME_START_INDEX, nameEndIndex).trim()
-                    .takeIf { it.isValidStockName() }
-                    ?: return@mapNotNull null
-
-                StockMasterItem(
-                    market = market,
-                    symbol = symbol,
-                    name = name,
-                )
+    private fun parseKisFixedRows(market: Market, bytes: ByteArray): List<StockMasterItem> {
+        val items = mutableListOf<StockMasterItem>()
+        var lineStart = 0
+        for (index in bytes.indices) {
+            if (bytes[index] == '\n'.code.toByte()) {
+                parseKisFixedRow(market, bytes, lineStart, index)?.let(items::add)
+                lineStart = index + 1
             }
-            .toList()
+        }
+        if (lineStart < bytes.size) {
+            parseKisFixedRow(market, bytes, lineStart, bytes.size)?.let(items::add)
+        }
+        return items
+    }
+
+    private fun parseKisFixedRow(
+        market: Market,
+        bytes: ByteArray,
+        lineStart: Int,
+        lineEnd: Int,
+    ): StockMasterItem? {
+        val rowEnd = if (lineEnd > lineStart && bytes[lineEnd - 1] == '\r'.code.toByte()) lineEnd - 1 else lineEnd
+        if (rowEnd - lineStart < KIS_NAME_START_INDEX) {
+            return null
+        }
+
+        val symbol = bytes.decodeText(lineStart, lineStart + KIS_SYMBOL_LENGTH, Charsets.US_ASCII).trim()
+        if (!symbol.matches(Regex("\\d{6}"))) {
+            return null
+        }
+
+        val nameStart = lineStart + KIS_NAME_START_INDEX
+        val nameEnd = minOf(rowEnd, nameStart + KIS_NAME_BYTE_LENGTH)
+        val name = bytes.decodeText(nameStart, nameEnd, masterCharset).trim()
+            .takeIf { it.isValidStockName() }
+            ?: return null
+
+        return StockMasterItem(
+            market = market,
+            symbol = symbol,
+            name = name,
+        )
+    }
+
+    private fun ByteArray.decodeText(startIndex: Int, endIndex: Int, charset: Charset): String {
+        return String(this, startIndex, endIndex - startIndex, charset)
     }
 
     private fun parseRows(market: Market, body: String): List<StockMasterItem> {
@@ -159,7 +181,7 @@ class KrxStockMasterClient(
     companion object {
         private const val KIS_SYMBOL_LENGTH = 6
         private const val KIS_NAME_START_INDEX = 21
-        private const val KIS_NAME_LENGTH = 40
+        private const val KIS_NAME_BYTE_LENGTH = 40
     }
 }
 
