@@ -47,4 +47,38 @@ class KrxStockMasterClientTests {
         assertEquals("000660", items[1].symbol)
         server.verify()
     }
+
+    @Test
+    fun `시장구분이 종목코드 앞에 있어도 헤더 기준으로 종목명을 추출한다`() {
+        val builder = RestClient.builder()
+        val server = MockRestServiceServer.bindTo(builder).build()
+        val client = KrxStockMasterClient(builder)
+        val url = "https://example.com/all-market.xls"
+
+        server.expect(requestTo(url)).andRespond(
+            withSuccess(
+                """
+                    <html>
+                      <body>
+                        <table>
+                          <tr><th>시장구분</th><th>종목코드</th><th>종목명</th><th>업종</th></tr>
+                          <tr><td>유가</td><td>005930</td><td>삼성전자</td><td>반도체</td></tr>
+                          <tr><td>코스닥</td><td>247540</td><td>에코프로비엠</td><td>전기제품</td></tr>
+                        </table>
+                      </body>
+                    </html>
+                """.trimIndent(),
+                MediaType("text", "html", StandardCharsets.UTF_8),
+            ),
+        )
+
+        val items = client.fetch(StockMasterSourceProperties(Market.KOSPI, url))
+
+        assertEquals(2, items.size)
+        assertEquals("005930", items[0].symbol)
+        assertEquals("삼성전자", items[0].name)
+        assertEquals("247540", items[1].symbol)
+        assertEquals("에코프로비엠", items[1].name)
+        server.verify()
+    }
 }
