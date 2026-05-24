@@ -29,10 +29,10 @@ class KrxStockMasterClientTests {
             withSuccess(
                 zipBytes(
                     entryName = "kospi_code.mst",
-                    content = listOf(
-                        kisMasterLine("005930", "KR7005930003", "삼성전자"),
-                        kisMasterLine("005935", "KR7005931001", "삼성전자우"),
-                    ).joinToString("\n"),
+                    lines = listOf(
+                        kisMasterLineBytes("005930", "KR7005930003", "삼성전자"),
+                        kisMasterLineBytes("005935", "KR7005931001", "삼성전자우"),
+                    ),
                 ),
                 MediaType.APPLICATION_OCTET_STREAM,
             ),
@@ -150,15 +150,25 @@ class KrxStockMasterClientTests {
         server.verify()
     }
 
-    private fun kisMasterLine(symbol: String, standardCode: String, name: String): String {
-        return symbol + "   " + standardCode + name.padEnd(40) + "ST"
+    private fun kisMasterLineBytes(symbol: String, standardCode: String, name: String): ByteArray {
+        val prefix = (symbol + "   " + standardCode).toByteArray(StandardCharsets.US_ASCII)
+        val nameArea = ByteArray(40) { ' '.code.toByte() }
+        val nameBytes = name.toByteArray(Charset.forName("CP949"))
+        nameBytes.copyInto(nameArea)
+        val suffix = "ST10".toByteArray(StandardCharsets.US_ASCII)
+        return prefix + nameArea + suffix
     }
 
-    private fun zipBytes(entryName: String, content: String): ByteArray {
+    private fun zipBytes(entryName: String, lines: List<ByteArray>): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
             zip.putNextEntry(ZipEntry(entryName))
-            zip.write(content.toByteArray(Charset.forName("CP949")))
+            lines.forEachIndexed { index, line ->
+                if (index > 0) {
+                    zip.write('\n'.code)
+                }
+                zip.write(line)
+            }
             zip.closeEntry()
         }
         return output.toByteArray()
