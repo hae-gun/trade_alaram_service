@@ -45,3 +45,8 @@ app:
     initial-delay-ms: ${MARKET_PRICE_INITIAL_DELAY_MS:30000}
     request-delay-ms: ${MARKET_PRICE_REQUEST_DELAY_MS:1500}
     error-backoff-ms: ${MARKET_PRICE_ERROR_BACKOFF_MS:5000}
+  stock-master:
+    enabled: ${STOCK_MASTER_ENABLED:true}
+    sync-on-startup: ${STOCK_MASTER_SYNC_ON_STARTUP:true}
+    request-delay-ms: ${STOCK_MASTER_REQUEST_DELAY_MS:500}
+    cron: "${STOCK_MASTER_CRON:0 30 7 * * MON-FRI}"

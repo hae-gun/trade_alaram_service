@@ -6,6 +6,7 @@ import com.tradealarm.domain.market.domain.PriceSnapshot
 import com.tradealarm.domain.market.domain.PriceSnapshotRepository
 import com.tradealarm.domain.market.infra.KisCurrentPriceClient
 import com.tradealarm.domain.stock.domain.Stock
+import com.tradealarm.global.websocket.RealtimeEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -16,6 +17,7 @@ import kotlin.math.abs
 class MarketPriceService(
     private val priceSnapshotRepository: PriceSnapshotRepository,
     private val kisCurrentPriceClient: KisCurrentPriceClient,
+    private val realtimeEventPublisher: RealtimeEventPublisher,
 ) {
     @Transactional
     fun getCurrentPrice(stock: Stock): PriceSnapshot {
@@ -34,18 +36,21 @@ class MarketPriceService(
 
     @Transactional
     fun refreshPrice(stock: Stock): PriceSnapshot {
-        if (kisCurrentPriceClient.isEnabled()) {
+        val snapshot = if (kisCurrentPriceClient.isEnabled()) {
             val currentPrice = kisCurrentPriceClient.getCurrentPrice(stock.symbol)
-            return priceSnapshotRepository.save(
+            priceSnapshotRepository.save(
                 PriceSnapshot(
                     stock = stock,
                     price = currentPrice.price,
                     changeRate = currentPrice.changeRate,
                 ),
             )
+        } else {
+            priceSnapshotRepository.save(createMockSnapshot(stock))
         }
 
-        return priceSnapshotRepository.save(createMockSnapshot(stock))
+        realtimeEventPublisher.publishPriceUpdated(snapshot)
+        return snapshot
     }
 
     private fun createMockSnapshot(stock: Stock): PriceSnapshot {

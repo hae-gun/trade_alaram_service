@@ -64,8 +64,8 @@ class ApiIntegrationTests @Autowired constructor(
             .andExpect {
                 status { isOk() }
                 jsonPath("$", hasSize<Any>(7))
-                jsonPath("$[0].symbol") { value("005930") }
-                jsonPath("$[0].name") { value("삼성전자") }
+                jsonPath("$[0].symbol") { value("000660") }
+                jsonPath("$[0].name") { value("SK하이닉스") }
             }
 
         mockMvc.get("/api/stocks") {
@@ -87,7 +87,7 @@ class ApiIntegrationTests @Autowired constructor(
         }.andExpect {
             status { isCreated() }
             jsonPath("$.stock.id") { value(stockId) }
-            jsonPath("$.stock.symbol") { value("005930") }
+            jsonPath("$.stock.symbol") { value("000660") }
             jsonPath("$.currentPrice") { exists() }
             jsonPath("$.changeRate") { exists() }
         }

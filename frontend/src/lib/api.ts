@@ -6,12 +6,14 @@ import type {
   AlertType,
   KakaoLoginResponse,
   NotificationChannel,
+  RealtimeEvent,
   Stock,
   User,
   WatchlistItem,
 } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -116,4 +118,16 @@ export async function loginWithKakao(authorizationCode: string, redirectUri: str
     method: "POST",
     body: JSON.stringify({ authorizationCode, redirectUri }),
   });
+}
+
+export function connectRealtimeStream(onEvent: (event: RealtimeEvent) => void): WebSocket {
+  const socket = new WebSocket(`${WS_BASE_URL}/ws/stream`);
+  socket.addEventListener("message", (message) => {
+    try {
+      onEvent(JSON.parse(message.data) as RealtimeEvent);
+    } catch {
+      // 잘못된 실시간 메시지는 화면 상태를 오염시키지 않고 무시합니다.
+    }
+  });
+  return socket;
 }
