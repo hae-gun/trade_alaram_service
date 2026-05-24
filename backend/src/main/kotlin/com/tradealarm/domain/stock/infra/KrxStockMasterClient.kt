@@ -26,19 +26,24 @@ class KrxStockMasterClient(
 
     private fun parseRows(market: Market, body: String): List<StockMasterItem> {
         val rows = parseHtmlRows(body).ifEmpty { parseDelimitedRows(body) }
-        return rows.mapNotNull { cells ->
-            val symbolIndex = cells.indexOfFirst { it.matches(Regex("\\d{6}")) }
-            if (symbolIndex < 0) {
-                return@mapNotNull null
-            }
+        val header = rows.firstOrNull().orEmpty()
+        val symbolIndex = header.findColumnIndex("종목코드", "단축코드", "표준코드")
+        val nameIndex = header.findColumnIndex("회사명", "종목명", "한글 종목명", "한글종목명")
+        val dataRows = if (symbolIndex >= 0 && nameIndex >= 0) rows.drop(1) else rows
 
-            val name = cells.take(symbolIndex).lastOrNull { it.isNotBlank() }
-                ?: cells.firstOrNull { it.isNotBlank() && !it.matches(Regex("\\d{6}")) }
+        return dataRows.mapNotNull { cells ->
+            val symbol = cells.getOrNull(symbolIndex)
+                ?.takeIf { it.matches(Regex("\\d{6}")) }
+                ?: cells.firstOrNull { it.matches(Regex("\\d{6}")) }
+                ?: return@mapNotNull null
+            val name = cells.getOrNull(nameIndex)
+                ?.takeIf { it.isValidStockName() }
+                ?: inferName(cells, symbol)
                 ?: return@mapNotNull null
 
             StockMasterItem(
                 market = market,
-                symbol = cells[symbolIndex],
+                symbol = symbol,
                 name = name,
             )
         }
@@ -77,6 +82,32 @@ class KrxStockMasterClient(
             .replace("&gt;", ">")
             .let { text -> runCatching { URLDecoder.decode(text, Charsets.UTF_8) }.getOrDefault(text) }
             .trim()
+    }
+
+    private fun List<String>.findColumnIndex(vararg candidates: String): Int {
+        return indexOfFirst { header ->
+            val normalizedHeader = header.normalizeHeader()
+            candidates.any { candidate -> normalizedHeader == candidate.normalizeHeader() }
+        }
+    }
+
+    private fun String.normalizeHeader(): String {
+        return replace(Regex("\\s+"), "")
+            .replace("'", "")
+            .replace("\"", "")
+            .trim()
+    }
+
+    private fun inferName(cells: List<String>, symbol: String): String? {
+        val symbolIndex = cells.indexOf(symbol)
+        val candidates = cells.drop(symbolIndex + 1) + cells.take(symbolIndex)
+        return candidates.firstOrNull { it.isValidStockName() }
+    }
+
+    private fun String.isValidStockName(): Boolean {
+        return isNotBlank() &&
+            !matches(Regex("\\d{6}")) &&
+            this !in setOf("유가", "코스닥", "코넥스", "KOSPI", "KOSDAQ", "KONEX")
     }
 }
 
