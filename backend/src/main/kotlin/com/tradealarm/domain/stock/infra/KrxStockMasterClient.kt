@@ -1,27 +1,73 @@
-// KRX/KIND 종목 마스터 파일을 내려받아 내부 종목 DTO로 변환합니다.
+// KIS 거래종목코드 마스터 파일을 내려받아 내부 종목 DTO로 변환합니다.
 package com.tradealarm.domain.stock.infra
 
 import com.tradealarm.domain.stock.domain.Market
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
+import java.io.ByteArrayInputStream
 import java.nio.charset.Charset
 import java.net.URLDecoder
+import java.util.zip.ZipInputStream
 
 @Component
 class KrxStockMasterClient(
     restClientBuilder: RestClient.Builder,
 ) {
     private val restClient = restClientBuilder.build()
+    private val masterCharset = Charset.forName("CP949")
 
     fun fetch(source: StockMasterSourceProperties): List<StockMasterItem> {
         val response = restClient.get()
             .uri(source.url)
             .retrieve()
             .toEntity(ByteArray::class.java)
+        val bytes = response.body ?: ByteArray(0)
+        if (source.url.endsWith(".zip", ignoreCase = true)) {
+            return parseKisZipRows(source.market, bytes)
+        }
+
         val charset = response.headers.contentType?.charset ?: Charset.forName("EUC-KR")
-        val body = response.body?.toString(charset).orEmpty()
+        val body = bytes.toString(charset)
 
         return parseRows(source.market, body)
+    }
+
+    private fun parseKisZipRows(market: Market, bytes: ByteArray): List<StockMasterItem> {
+        return ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
+            generateSequence { zip.nextEntry }
+                .filterNot { it.isDirectory }
+                .flatMap {
+                    val content = zip.readBytes().toString(masterCharset)
+                    parseKisFixedRows(market, content).asSequence()
+                }
+                .toList()
+        }
+    }
+
+    private fun parseKisFixedRows(market: Market, body: String): List<StockMasterItem> {
+        return body.lineSequence()
+            .mapNotNull { line ->
+                if (line.length < KIS_NAME_START_INDEX) {
+                    return@mapNotNull null
+                }
+
+                val symbol = line.substring(0, KIS_SYMBOL_LENGTH).trim()
+                if (!symbol.matches(Regex("\\d{6}"))) {
+                    return@mapNotNull null
+                }
+
+                val nameEndIndex = minOf(line.length, KIS_NAME_START_INDEX + KIS_NAME_LENGTH)
+                val name = line.substring(KIS_NAME_START_INDEX, nameEndIndex).trim()
+                    .takeIf { it.isValidStockName() }
+                    ?: return@mapNotNull null
+
+                StockMasterItem(
+                    market = market,
+                    symbol = symbol,
+                    name = name,
+                )
+            }
+            .toList()
     }
 
     private fun parseRows(market: Market, body: String): List<StockMasterItem> {
@@ -108,6 +154,12 @@ class KrxStockMasterClient(
         return isNotBlank() &&
             !matches(Regex("\\d{6}")) &&
             this !in setOf("유가", "코스닥", "코넥스", "KOSPI", "KOSDAQ", "KONEX")
+    }
+
+    companion object {
+        private const val KIS_SYMBOL_LENGTH = 6
+        private const val KIS_NAME_START_INDEX = 21
+        private const val KIS_NAME_LENGTH = 40
     }
 }
 

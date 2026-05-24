@@ -1,4 +1,4 @@
-// KRX/KIND 종목 마스터 응답 파싱을 검증합니다.
+// KIS/KIND 종목 마스터 응답 파싱을 검증합니다.
 package com.tradealarm
 
 import com.tradealarm.domain.stock.domain.Market
@@ -11,9 +11,43 @@ import org.springframework.test.web.client.MockRestServiceServer
 import org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 import org.springframework.web.client.RestClient
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 
 class KrxStockMasterClientTests {
+    @Test
+    fun `KIS 거래종목코드 마스터에서 우선주 포함 종목명과 코드를 추출한다`() {
+        val builder = RestClient.builder()
+        val server = MockRestServiceServer.bindTo(builder).build()
+        val client = KrxStockMasterClient(builder)
+        val url = "https://example.com/kospi_code.mst.zip"
+
+        server.expect(requestTo(url)).andRespond(
+            withSuccess(
+                zipBytes(
+                    entryName = "kospi_code.mst",
+                    content = listOf(
+                        kisMasterLine("005930", "KR7005930003", "삼성전자"),
+                        kisMasterLine("005935", "KR7005931001", "삼성전자우"),
+                    ).joinToString("\n"),
+                ),
+                MediaType.APPLICATION_OCTET_STREAM,
+            ),
+        )
+
+        val items = client.fetch(StockMasterSourceProperties(Market.KOSPI, url))
+
+        assertEquals(2, items.size)
+        assertEquals("005930", items[0].symbol)
+        assertEquals("삼성전자", items[0].name)
+        assertEquals("005935", items[1].symbol)
+        assertEquals("삼성전자우", items[1].name)
+        server.verify()
+    }
+
     @Test
     fun `KIND HTML 종목 마스터에서 종목명과 코드를 추출한다`() {
         val builder = RestClient.builder()
@@ -114,5 +148,19 @@ class KrxStockMasterClientTests {
         assertEquals("000040", items[1].symbol)
         assertEquals("KR모터스", items[1].name)
         server.verify()
+    }
+
+    private fun kisMasterLine(symbol: String, standardCode: String, name: String): String {
+        return symbol + "   " + standardCode + name.padEnd(40) + "ST"
+    }
+
+    private fun zipBytes(entryName: String, content: String): ByteArray {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
+            zip.putNextEntry(ZipEntry(entryName))
+            zip.write(content.toByteArray(Charset.forName("CP949")))
+            zip.closeEntry()
+        }
+        return output.toByteArray()
     }
 }
