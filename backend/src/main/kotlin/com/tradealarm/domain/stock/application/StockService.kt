@@ -5,6 +5,7 @@ package com.tradealarm.domain.stock.application
 import com.tradealarm.domain.stock.domain.Stock
 import com.tradealarm.domain.stock.domain.StockRepository
 import com.tradealarm.global.exception.ApiException
+import org.springframework.data.domain.PageRequest
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -17,13 +18,14 @@ class StockService(
     @Transactional(readOnly = true)
     fun search(query: String?): List<Stock> {
         if (query.isNullOrBlank()) {
-            return stockRepository.findAll().filter { it.enabled }.take(20)
+            return stockRepository.findTop50ByEnabledIsTrueOrderBySymbolAsc()
         }
 
         return stockRepository
-            .findTop20ByEnabledIsTrueAndNameContainingIgnoreCaseOrEnabledIsTrueAndSymbolContainingIgnoreCase(
+            .findByEnabledIsTrueAndNameContainingIgnoreCaseOrEnabledIsTrueAndSymbolContainingIgnoreCase(
                 query.trim(),
                 query.trim(),
+                PageRequest.of(0, 50),
             )
     }
 

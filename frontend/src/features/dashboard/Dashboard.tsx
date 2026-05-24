@@ -11,6 +11,7 @@ import { StockSearch } from "@/features/stocks/StockSearch";
 import { Watchlist } from "@/features/watchlist/Watchlist";
 import {
   addWatchlistItem,
+  connectRealtimeStream,
   createAlertRule,
   createEmailChannel,
   deleteAlertRule,
@@ -105,6 +106,59 @@ export function Dashboard() {
 
     return () => window.clearTimeout(timer);
   }, [query, loadDashboard, isSessionReady, user]);
+
+  useEffect(() => {
+    if (!isSessionReady || !user) {
+      return;
+    }
+
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | null = null;
+    let closedByEffect = false;
+    const connect = () => {
+      socket = connectRealtimeStream((event) => {
+        if (event.type === "PRICE_UPDATED") {
+          setWatchlist((current) => current.map((item) => {
+            if (item.stock.id !== event.payload.stockId) {
+              return item;
+            }
+
+            return {
+              ...item,
+              currentPrice: Number(event.payload.price),
+              changeRate: Number(event.payload.changeRate),
+            };
+          }));
+          return;
+        }
+
+        if (event.type === "ALERT_EVENT_CREATED") {
+          setAlertEvents((current) => {
+            if (current.some((alertEvent) => alertEvent.id === event.payload.id)) {
+              return current;
+            }
+
+            return [event.payload, ...current].slice(0, 50);
+          });
+        }
+      });
+      socket.addEventListener("close", () => {
+        if (!closedByEffect) {
+          reconnectTimer = window.setTimeout(connect, 3000);
+        }
+      });
+    };
+
+    connect();
+
+    return () => {
+      closedByEffect = true;
+      if (reconnectTimer) {
+        window.clearTimeout(reconnectTimer);
+      }
+      socket?.close();
+    };
+  }, [isSessionReady, user]);
 
   function handleLogout() {
     window.localStorage.removeItem("trade_alarm_user");

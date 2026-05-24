@@ -10,6 +10,7 @@ import com.tradealarm.domain.notification.domain.NotificationChannelRepository
 import com.tradealarm.domain.notification.domain.NotificationChannelType
 import com.tradealarm.domain.notification.infra.SlackNotificationSender
 import com.tradealarm.domain.user.application.DemoUserService
+import com.tradealarm.global.websocket.RealtimeEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
@@ -20,6 +21,7 @@ class NotificationService(
     private val alertEventRepository: AlertEventRepository,
     private val notificationChannelRepository: NotificationChannelRepository,
     private val slackNotificationSender: SlackNotificationSender,
+    private val realtimeEventPublisher: RealtimeEventPublisher,
 ) {
     @Transactional(readOnly = true)
     fun getMyEvents(): List<AlertEvent> {
@@ -41,7 +43,7 @@ class NotificationService(
             ?.destination
         val status = slackNotificationSender.send(message, slackMention)
 
-        return alertEventRepository.save(
+        val event = alertEventRepository.save(
             AlertEvent(
                 user = rule.user,
                 alertRule = rule,
@@ -52,6 +54,8 @@ class NotificationService(
                 status = status,
             ),
         )
+        realtimeEventPublisher.publishAlertEventCreated(event)
+        return event
     }
 
     @Transactional

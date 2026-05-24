@@ -44,7 +44,7 @@ export type AlertEvent = {
 
 export type NotificationChannel = {
   id: string;
-  type: "EMAIL" | "KAKAO_ALIMTALK" | "WEB_PUSH";
+  type: "EMAIL" | "KAKAO_ALIMTALK" | "WEB_PUSH" | "SLACK";
   destination: string;
   verified: boolean;
   enabled: boolean;
@@ -61,3 +61,21 @@ export type KakaoLoginResponse = {
   provider: "KAKAO";
   isNewUser: boolean;
 };
+
+export type PriceUpdatedPayload = {
+  stockId: string;
+  symbol: string;
+  price: number;
+  changeRate: number;
+  capturedAt: string;
+};
+
+export type RealtimeEvent =
+  | {
+      type: "PRICE_UPDATED";
+      payload: PriceUpdatedPayload;
+    }
+  | {
+      type: "ALERT_EVENT_CREATED";
+      payload: AlertEvent;
+    };

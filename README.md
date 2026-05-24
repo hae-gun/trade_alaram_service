@@ -6,11 +6,12 @@
 ## 주요 기능
 
 - 카카오 소셜 로그인
-- 국내 주식 종목 검색
+- KRX/KIND 종목 마스터 기반 국내 주식 전체 종목 검색
 - 관심종목 등록/삭제
 - 종목 선택 시 알림 조건 팝업 생성
 - 목표가 이상/이하, 상승률/하락률 알림 조건
 - 관심종목 및 활성 알림 종목의 현재가 주기 갱신
+- WebSocket 기반 현재가/알림 이력 실시간 반영
 - 알림 조건 평가 및 중복 발송 방지
 - Slack Webhook 알림 송신
 - 알림 발송 이력 조회
@@ -42,8 +43,20 @@ backend/src/main/kotlin/com/tradealarm
 │   ├── market              # KIS 현재가 조회 및 가격 스냅샷
 │   ├── alert               # 알림 조건 및 평가
 │   └── notification        # Slack 송신 및 발송 이력
-└── global                  # 공통 설정, 예외, 보안, lock
+└── global                  # 공통 설정, 예외, 보안, lock, websocket
 ```
+
+### 종목 마스터 동기화
+
+종목 검색은 KIS 현재가 API를 직접 호출하지 않습니다. 서버가 KRX/KIND 종목 마스터 파일을 시작 시점과 평일 오전 7시 30분에 동기화하고, 검색 API는 저장된 `stocks` 테이블만 조회합니다.
+
+- 스케줄러: `StockMasterSyncScheduler`
+- 기본 동기화: `STOCK_MASTER_ENABLED=true`
+- 시작 시 동기화: `STOCK_MASTER_SYNC_ON_STARTUP=true`
+- 소스 간 요청 간격: `STOCK_MASTER_REQUEST_DELAY_MS=500`
+- 기본 cron: `STOCK_MASTER_CRON="0 30 7 * * MON-FRI"`
+
+이 구조에서는 사용자가 검색어를 입력해도 KIS API 호출이 증가하지 않습니다. KIS 현재가 호출은 관심종목과 활성 알림 조건에 연결된 종목에 대해서만 기존 주기 설정에 따라 수행됩니다.
 
 ### 시세 갱신
 
@@ -94,6 +107,17 @@ COOLDOWN: 마지막 발송 후 30분이 지나야 재발송
 ```
 
 삭제된 알림 조건은 soft delete 처리되어 발송 이력 참조는 보존하고, 목록/평가 대상에서는 제외합니다.
+
+### 실시간 이벤트
+
+백엔드는 `/ws/stream` WebSocket 엔드포인트로 현재가 갱신과 알림 발송 이벤트를 브라우저에 푸시합니다.
+
+```text
+PRICE_UPDATED: 관심종목 현재가/등락률 갱신
+ALERT_EVENT_CREATED: 새 알림 발송 이력 추가
+```
+
+프론트엔드는 연결이 끊기면 3초 뒤 재연결합니다.
 
 ### Slack 알림
 
@@ -171,6 +195,8 @@ DELETE /api/watchlist/{stockId}
 
 GET    /api/market/stocks/{stockId}/price
 
+WS     /ws/stream
+
 GET    /api/alerts
 POST   /api/alerts
 PATCH  /api/alerts/{ruleId}
@@ -208,6 +234,11 @@ KAKAO_REDIRECT_URI=http://localhost:3000/auth/kakao/callback
 
 SLACK_ENABLED=false
 SLACK_WEBHOOK_URL=
+
+STOCK_MASTER_ENABLED=true
+STOCK_MASTER_SYNC_ON_STARTUP=true
+STOCK_MASTER_REQUEST_DELAY_MS=500
+STOCK_MASTER_CRON="0 30 7 * * MON-FRI"
 
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 NEXT_PUBLIC_KAKAO_REST_API_KEY=

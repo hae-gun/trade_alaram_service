@@ -3,13 +3,16 @@
 package com.tradealarm.domain.stock.domain
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.domain.Pageable
 import java.util.Optional
 import java.util.UUID
 
 interface StockRepository : JpaRepository<Stock, UUID> {
     fun findBySymbol(symbol: String): Optional<Stock>
-    fun findTop20ByEnabledIsTrueAndNameContainingIgnoreCaseOrEnabledIsTrueAndSymbolContainingIgnoreCase(
+    fun findTop50ByEnabledIsTrueOrderBySymbolAsc(): List<Stock>
+    fun findByEnabledIsTrueAndNameContainingIgnoreCaseOrEnabledIsTrueAndSymbolContainingIgnoreCase(
         name: String,
         symbol: String,
+        pageable: Pageable,
     ): List<Stock>
 }
