@@ -81,4 +81,38 @@ class KrxStockMasterClientTests {
         assertEquals("에코프로비엠", items[1].name)
         server.verify()
     }
+
+    @Test
+    fun `KIND 실제 컬럼 순서에서 회사명을 종목명으로 추출한다`() {
+        val builder = RestClient.builder()
+        val server = MockRestServiceServer.bindTo(builder).build()
+        val client = KrxStockMasterClient(builder)
+        val url = "https://example.com/stock-market.xls"
+
+        server.expect(requestTo(url)).andRespond(
+            withSuccess(
+                """
+                    <html>
+                      <body>
+                        <table>
+                          <tr><th>회사명</th><th>시장구분</th><th>종목코드</th><th>업종</th></tr>
+                          <tr><td>동화약품</td><td>유가</td><td>000020</td><td>의약품 제조업</td></tr>
+                          <tr><td>KR모터스</td><td>유가</td><td>000040</td><td>그 외 기타 운송장비 제조업</td></tr>
+                        </table>
+                      </body>
+                    </html>
+                """.trimIndent(),
+                MediaType("text", "html", StandardCharsets.UTF_8),
+            ),
+        )
+
+        val items = client.fetch(StockMasterSourceProperties(Market.KOSPI, url))
+
+        assertEquals(2, items.size)
+        assertEquals("000020", items[0].symbol)
+        assertEquals("동화약품", items[0].name)
+        assertEquals("000040", items[1].symbol)
+        assertEquals("KR모터스", items[1].name)
+        server.verify()
+    }
 }
